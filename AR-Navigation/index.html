@@ -2,9 +2,9 @@
 <html>
   <head>
     <meta charset="utf-8" />
-    <title>AR + Hidden SVG + Map Viewer</title>
+    <title>AR + Map + Hidden SVG + Marker Text</title>
 
-    <!-- MindAR & Three.js -->
+    <!-- Three.js & MindAR -->
     <script src="https://cdn.jsdelivr.net/npm/three@0.150.0/build/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.1.4/dist/mindar-image-three.prod.js"></script>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/mind-ar@1.1.4/dist/mindar-image-three.prod.css" />
@@ -20,14 +20,12 @@
         overflow: hidden;
       }
 
-      /* Main AR container fills the screen */
       #ar-container {
         width: 100vw;
         height: 100vh;
         position: relative;
       }
 
-      /* Position the map in the bottom-left corner */
       #map {
         position: absolute;
         bottom: 10px;
@@ -39,37 +37,57 @@
         box-shadow: 0 0 8px rgba(0, 0, 0, 0.2);
       }
 
-      /* Hide the SVG but keep it interactive */
       #svgObject {
         position: absolute;
         width: 1px;
         height: 1px;
         opacity: 0;
-        pointer-events: none; /* makes it invisible and unclickable */
+        pointer-events: none;
       }
     </style>
   </head>
 
   <body>
-    <!-- AR scene container -->
     <div id="ar-container">
       <div id="map"></div>
       <object id="svgObject" type="image/svg+xml" data="RDSC.svg"></object>
     </div>
 
-    <!-- Scripts -->
+    <!-- Optional: your own logic -->
     <script src="svg.js"></script>
     <script src="leaflet.js"></script>
 
-    <!-- MindAR Setup -->
     <script>
       const start = async () => {
         const mindarThree = new window.MINDAR.IMAGE.MindARThree({
           container: document.querySelector("#ar-container"),
-          imageTargetSrc: "./targets.mind", // ensure file exists
+          imageTargetSrc: "./targets.mind", // replace with your .mind file
         });
 
         const { renderer, scene, camera } = mindarThree;
+
+        const anchor = mindarThree.addAnchor(0);
+
+        // Create a simple canvas-based text sprite
+        const createTextSprite = (message) => {
+          const canvas = document.createElement("canvas");
+          canvas.width = 512;
+          canvas.height = 128;
+          const context = canvas.getContext("2d");
+          context.font = "bold 64px Arial";
+          context.fillStyle = "white";
+          context.fillText(message, 10, 80);
+
+          const texture = new THREE.CanvasTexture(canvas);
+          const material = new THREE.SpriteMaterial({ map: texture, transparent: true });
+          const sprite = new THREE.Sprite(material);
+          sprite.scale.set(2, 0.5, 1); // adjust size
+          sprite.position.set(0, 1, 0); // position above marker
+          return sprite;
+        };
+
+        const markerText = createTextSprite("Marker Detected");
+        anchor.group.add(markerText);
 
         await mindarThree.start();
 
