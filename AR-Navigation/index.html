@@ -2,7 +2,7 @@
 <html>
   <head>
     <meta charset="utf-8" />
-    <title>AR + Map + Hidden SVG + Marker Text</title>
+    <title>AR + Map + Hidden SVG + Multiple Markers</title>
 
     <!-- Three.js & MindAR -->
     <script src="https://cdn.jsdelivr.net/npm/three@0.150.0/build/three.min.js"></script>
@@ -61,14 +61,12 @@
       const start = async () => {
         const mindarThree = new window.MINDAR.IMAGE.MindARThree({
           container: document.querySelector("#ar-container"),
-          imageTargetSrc: "./try.mind", // replace with your .mind file
+          imageTargetSrc: "./try.mind", // Ensure this includes multiple images
         });
 
         const { renderer, scene, camera } = mindarThree;
 
-        const anchor = mindarThree.addAnchor(0);
-
-        // Create a simple canvas-based text sprite
+        // Function to create canvas-based text sprite
         const createTextSprite = (message) => {
           const canvas = document.createElement("canvas");
           canvas.width = 512;
@@ -81,13 +79,27 @@
           const texture = new THREE.CanvasTexture(canvas);
           const material = new THREE.SpriteMaterial({ map: texture, transparent: true });
           const sprite = new THREE.Sprite(material);
-          sprite.scale.set(2, 0.5, 1); // adjust size
-          sprite.position.set(0, 1, 0); // position above marker
+          sprite.scale.set(2, 0.5, 1);
+          sprite.position.set(0, 1, 0);
           return sprite;
         };
 
-        const markerText = createTextSprite("Marker Detected");
-        anchor.group.add(markerText);
+        // Add anchors for each image target
+        const totalTargets = 2; // change this to match your number of image targets
+        const anchors = [];
+
+        for (let i = 0; i < totalTargets; i++) {
+          const anchor = mindarThree.addAnchor(i);
+          anchors.push(anchor);
+
+          // Add different text per target (optional)
+          const sprite = createTextSprite(`Target ${i} Detected`);
+          anchor.group.add(sprite);
+
+          // Debug logs
+          anchor.onTargetFound = () => console.log(`Target ${i} found`);
+          anchor.onTargetLost = () => console.log(`Target ${i} lost`);
+        }
 
         await mindarThree.start();
 
