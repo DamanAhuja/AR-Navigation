@@ -1,55 +1,47 @@
-document.addEventListener("DOMContentLoaded", () => {
-    if (typeof AFRAME === 'undefined') {
-      console.error("AFRAME is not loaded");
-      return;
-    }
-  
-    AFRAME.registerComponent('markerhandler', {
-      init: function () {
-        const sceneEl = this.el.sceneEl;
-  
-        sceneEl.addEventListener('targetFound', (e) => {
-          const targetIndex = e.detail?.targetIndex;
-          if (typeof targetIndex !== 'number') {
-            console.error("Invalid or missing targetIndex in event detail");
-            return;
-          }
-          
-          // Get marker ID from extractedNodes
-          const extractedNodes = window.extractedNodes || [];
-          const markerId = extractedNodes[targetIndex]?.id;
-  
-          console.log(`Detected target index: ${targetIndex} → Marker ID: ${markerId}`);
-  
-          if (markerId && typeof window.setUserLocation === 'function') {
-            window.setUserLocation(markerId);
-          } else {
-            console.warn("markerId missing or setUserLocation not defined.");
-          }
+document.addEventListener("DOMContentLoaded", function () {
+    if (typeof AFRAME !== 'undefined') {
+        AFRAME.registerComponent('markerhandler', {
+            init: function () {
+                this.el.sceneEl.addEventListener('targetFound', (e) => {
+                    const targetIndex = e.detail.targetIndex;
+
+                    // Check if the targetIndex is valid for the mindFiles array
+                    if (targetIndex < mindFiles.length) {
+                        // Get the .mind file from the mindFiles array using the targetIndex
+                        const selectedMindFile = mindFiles[targetIndex];
+                        console.log("Selected .mind file:", selectedMindFile);
+
+                        // Now get the corresponding marker ID from the extractedNodes array
+                        const svgNodes = window.extractedNodes || [];
+                        const markerId = svgNodes[targetIndex]?.id;  // Get marker ID by index
+
+                        console.log("Detected marker index:", targetIndex, "-> Marker ID:", markerId);
+
+                        if (markerId && typeof window.setUserLocation === 'function') {
+                            // Pass the markerId to the setUserLocation function
+                            window.setUserLocation(markerId);
+                        }
+                    } else {
+                        console.error("Invalid target index:", targetIndex);
+                    }
+                });
+            }
         });
-  
-        // OPTIONAL: Simulate detection
-        if (window.TEST_MODE) {
-          setTimeout(() => {
-            this.simulateDetection(0); // Change index to test different targets
-          }, 1000);
+
+        // Attach the markerhandler component to the scene
+        const scene = document.querySelector('a-scene');
+        scene.setAttribute('markerhandler', '');
+        
+        function mockImageDetection(targetIndex) {
+            const event = new CustomEvent('targetFound', {
+                detail: { targetIndex }
+            });
+            scene.dispatchEvent(event);
         }
-      },
-  
-      simulateDetection(index) {
-        const event = new CustomEvent('targetFound', {
-          detail: { targetIndex: index }
-        });
-        this.el.sceneEl.dispatchEvent(event);
-      }
-    });
-  
-    // Attach the markerhandler to the <a-scene>
-    const scene = document.querySelector('a-scene');
-    if (scene) {
-      scene.setAttribute('markerhandler', '');
+
+        // Simulate target detection with a specific index (e.g., 0 for the first marker)
+        mockImageDetection(0); 
     } else {
-      console.error("<a-scene> not found in DOM.");
+        console.error("AFRAME is not loaded");
     }
-  });
-  
+});
