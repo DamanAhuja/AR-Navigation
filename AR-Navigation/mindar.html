@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Empty MindAR Scene</title>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.150.0/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.1.4/dist/mindar-image-three.prod.js"></script>
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/mind-ar@1.1.4/dist/mindar-image-three.prod.css"
+    />
+    <style>
+      body {
+        margin: 0;
+        overflow: hidden;
+      }
+      #ar-container {
+        width: 100vw;
+        height: 100vh;
+        position: relative;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div id="ar-container"></div>
+
+    <script>
+      const start = async () => {
+        const mindarThree = new window.MINDAR.IMAGE.MindARThree({
+          container: document.querySelector("#ar-container"),
+          imageTargetSrc: "./targets.mind", // you can use a dummy .mind file or any valid target file
+        });
+
+        const { renderer, scene, camera } = mindarThree;
+
+        await mindarThree.start();
+
+        renderer.setAnimationLoop(() => {
+          renderer.render(scene, camera);
+        });
+      };
+
+      start();
+    </script>
+  </body>
+</html>

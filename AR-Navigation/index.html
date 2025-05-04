@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>AR + Hidden SVG + Map Viewer</title>
+
+    <!-- MindAR & Three.js -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.150.0/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.1.4/dist/mindar-image-three.prod.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/mind-ar@1.1.4/dist/mindar-image-three.prod.css" />
+
+    <!-- Leaflet -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+      }
+
+      /* Main AR container fills the screen */
+      #ar-container {
+        width: 100vw;
+        height: 100vh;
+        position: relative;
+      }
+
+      /* Position the map in the bottom-left corner */
+      #map {
+        position: absolute;
+        bottom: 10px;
+        left: 10px;
+        width: 300px;
+        height: 300px;
+        z-index: 10;
+        border: 2px solid #ccc;
+        box-shadow: 0 0 8px rgba(0, 0, 0, 0.2);
+      }
+
+      /* Hide the SVG but keep it interactive */
+      #svgObject {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        opacity: 0;
+        pointer-events: none; /* makes it invisible and unclickable */
+      }
+    </style>
+  </head>
+
+  <body>
+    <!-- AR scene container -->
+    <div id="ar-container">
+      <div id="map"></div>
+      <object id="svgObject" type="image/svg+xml" data="RDSC.svg"></object>
+    </div>
+
+    <!-- Scripts -->
+    <script src="svg.js"></script>
+    <script src="leaflet.js"></script>
+
+    <!-- MindAR Setup -->
+    <script>
+      const start = async () => {
+        const mindarThree = new window.MINDAR.IMAGE.MindARThree({
+          container: document.querySelector("#ar-container"),
+          imageTargetSrc: "./targets.mind", // ensure file exists
+        });
+
+        const { renderer, scene, camera } = mindarThree;
+
+        await mindarThree.start();
+
+        renderer.setAnimationLoop(() => {
+          renderer.render(scene, camera);
+        });
+      };
+
+      start();
+    </script>
+  </body>
+</html>
