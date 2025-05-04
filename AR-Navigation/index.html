@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
   <head>
     <meta charset="utf-8" />
     <title>AR + Map + Hidden SVG + Multiple Markers</title>
@@ -53,9 +53,7 @@
       <object id="svgObject" type="image/svg+xml" data="RDSC.svg"></object>
     </div>
 
-    <!-- Optional: your own logic -->
-    <script src="svg.js"></script>
-    <script src="leaflet.js"></script>
+    <script src="externalScript.js"></script> <!-- External Script -->
 
     <script>
       const start = async () => {
@@ -66,24 +64,6 @@
 
         const { renderer, scene, camera } = mindarThree;
 
-        // Function to create canvas-based text sprite
-        const createTextSprite = (message) => {
-          const canvas = document.createElement("canvas");
-          canvas.width = 512;
-          canvas.height = 128;
-          const context = canvas.getContext("2d");
-          context.font = "bold 64px Arial";
-          context.fillStyle = "white";
-          context.fillText(message, 10, 80);
-
-          const texture = new THREE.CanvasTexture(canvas);
-          const material = new THREE.SpriteMaterial({ map: texture, transparent: true });
-          const sprite = new THREE.Sprite(material);
-          sprite.scale.set(2, 0.5, 1);
-          sprite.position.set(0, 1, 0);
-          return sprite;
-        };
-
         // Add anchors for each image target
         const totalTargets = 2; // change this to match your number of image targets
         const anchors = [];
@@ -92,12 +72,17 @@
           const anchor = mindarThree.addAnchor(i);
           anchors.push(anchor);
 
-          // Add different text per target (optional)
-          const sprite = createTextSprite(`Target ${i} Detected`);
-          anchor.group.add(sprite);
-
           // Debug logs
-          anchor.onTargetFound = () => console.log(`Target ${i} found`);
+          anchor.onTargetFound = () => {
+            console.log(`Target ${i} found`);
+
+            // Trigger the targetFound event
+            const event = new CustomEvent("targetFound", {
+              detail: { targetIndex: i }
+            });
+            document.dispatchEvent(event);  // Dispatch event on the document
+          };
+
           anchor.onTargetLost = () => console.log(`Target ${i} lost`);
         }
 
