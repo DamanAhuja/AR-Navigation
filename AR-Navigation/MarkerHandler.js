@@ -27,7 +27,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
         // Attach the markerhandler component to the scene
         const scene = document.querySelector('a-scene');
-        scene.setAttribute('MarkerHandler', '');
+        scene.setAttribute('markerhandler', '');
         
         
     } else {
