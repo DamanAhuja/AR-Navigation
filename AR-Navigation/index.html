@@ -30,6 +30,18 @@
         position: relative;
       }
 
+      #routing-ui {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        z-index: 999;
+        background: white;
+        padding: 10px;
+        border-radius: 5px;
+        pointer-events: auto;
+        box-shadow: 0 0 5px rgba(0, 0, 0, 0.2);
+      }
+
       #map {
         position: absolute;
         bottom: 150px;
@@ -52,12 +64,12 @@
   </head>
 
   <body>
-    <<div id="ar-container">
+    <div id="ar-container">
       <div id="routing-ui">
         <input type="text" id="destinationInput" placeholder="Enter destination" />
         <button onclick="routeToDestination()">Go</button>
       </div>
-      
+
       <div id="map"></div>
       <object id="svgObject" type="image/svg+xml" data="RDSC.svg"></object>
     </div>
@@ -73,11 +85,11 @@
         try {
           const mindarThree = new window.MINDAR.IMAGE.MindARThree({
             container: document.querySelector("#ar-container"),
-            imageTargetSrc: "./test.mind" // Ensure this includes multiple image targets
+            imageTargetSrc: "./test.mind"
           });
 
           const { renderer, scene, camera } = mindarThree;
-          const totalTargets = 2; // Adjust to your number of markers
+          const totalTargets = 2;
           const anchors = [];
 
           for (let i = 0; i < totalTargets; i++) {
@@ -108,6 +120,18 @@
       };
 
       start();
+    </script>
+
+    <!-- Go Button Handler -->
+    <script>
+      function routeToDestination() {
+        const destination = document.getElementById("destinationInput").value.trim();
+        if (destination && typeof window.goTo === "function") {
+          window.goTo(destination);
+        } else {
+          console.warn("Destination is empty or goTo() is not defined.");
+        }
+      }
     </script>
   </body>
 </html>
