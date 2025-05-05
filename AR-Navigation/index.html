@@ -52,7 +52,12 @@
   </head>
 
   <body>
-    <div id="ar-container">
+    <<div id="ar-container">
+      <div id="routing-ui">
+        <input type="text" id="destinationInput" placeholder="Enter destination" />
+        <button onclick="routeToDestination()">Go</button>
+      </div>
+      
       <div id="map"></div>
       <object id="svgObject" type="image/svg+xml" data="RDSC.svg"></object>
     </div>
