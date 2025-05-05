@@ -5,8 +5,8 @@ window.addEventListener('DOMContentLoaded', () => {
     if (window.extractedNodes && Array.isArray(window.extractedNodes)) {
       window.extractedNodes.forEach(node => {
         const option = document.createElement('option');
-        option.value = node;
-        option.text = node;
+        option.value = node.id;
+        option.text = node.id;
         dropdown.appendChild(option);
       });
     } else {
