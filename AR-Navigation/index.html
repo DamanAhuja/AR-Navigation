@@ -34,12 +34,38 @@
         position: absolute;
         top: 10px;
         left: 10px;
+        right: 10px;
         z-index: 999;
         background: white;
-        padding: 10px;
-        border-radius: 5px;
+        padding: 20px;
+        height: 120px;
+        border-radius: 20px;
         pointer-events: auto;
-        box-shadow: 0 0 5px rgba(0, 0, 0, 0.2);
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.25);
+
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 15px;
+      }
+
+      #destinationDropdown {
+        width: 300px;
+      }
+
+      #routing-ui button {
+        padding: 12px 20px;
+        font-size: 16px;
+        background-color: #1976d2;
+        color: white;
+        border: none;
+        border-radius: 10px;
+        cursor: pointer;
+        transition: background-color 0.2s;
+      }
+
+      #routing-ui button:hover {
+        background-color: #1259a6;
       }
 
       #map {
@@ -66,8 +92,8 @@
   <body>
     <div id="ar-container">
       <div id="routing-ui">
-        <input type="text" id="destinationInput" placeholder="Enter destination" />
-        <button onclick="routeToDestination()">Go</button>
+        <select id="destinationDropdown" class="choices"></select>
+        <button onclick="routeToSelected()">Go</button>
       </div>
 
       <div id="map"></div>
@@ -78,6 +104,19 @@
     <script src="svg.js"></script>
     <script src="leaflet.js"></script>
     <script src="MarkerHandler.js"></script>
+    <script src="choices.js"></script>
+
+    <!-- Route to destination handler -->
+    <script>
+      function routeToDestination() {
+        const destination = document.getElementById('destinationInput').value;
+        if (window.goTo && destination) {
+          window.goTo(destination);
+        } else {
+          console.warn("goTo function not available or destination empty.");
+        }
+      }
+    </script>
 
     <!-- AR and marker setup -->
     <script>
@@ -85,11 +124,11 @@
         try {
           const mindarThree = new window.MINDAR.IMAGE.MindARThree({
             container: document.querySelector("#ar-container"),
-            imageTargetSrc: "./test.mind"
+            imageTargetSrc: "./test.mind" // Ensure this includes multiple image targets
           });
 
           const { renderer, scene, camera } = mindarThree;
-          const totalTargets = 2;
+          const totalTargets = 2; // Adjust to your number of markers
           const anchors = [];
 
           for (let i = 0; i < totalTargets; i++) {
@@ -120,18 +159,6 @@
       };
 
       start();
-    </script>
-
-    <!-- Go Button Handler -->
-    <script>
-      function routeToDestination() {
-        const destination = document.getElementById("destinationInput").value.trim();
-        if (destination && typeof window.goTo === "function") {
-          window.goTo(destination);
-        } else {
-          console.warn("Destination is empty or goTo() is not defined.");
-        }
-      }
     </script>
   </body>
 </html>
