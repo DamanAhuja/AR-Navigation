@@ -19,54 +19,6 @@ window.addEventListener("load", () => {
     let userMarker;
     let currentMarkerId = null;
     let pathLayers = [];
-    // Keep track of AR objects for cleanup
-    let arPathObjects = [];
-    let arInitialized = false;
-
-    // Flag to indicate if AR is ready
-    window.arReady = false;
-
-    // Initialize AR scene
-    function waitForMindAR() {
-        const check = setInterval(() => {
-            if (window.mindarThree && window.mindarThree.scene) {
-                clearInterval(check);
-                initializeAR();
-            }
-        }, 500);
-
-        // Timeout after 10 seconds
-        setTimeout(() => {
-            clearInterval(check);
-            console.warn("MindAR initialization timed out.");
-        }, 10000);
-        
-        return true;
-    }
-    
-    function initializeAR() {
-        // Add an event listener for when AR targets are found
-        document.addEventListener("targetFound", (event) => {
-            const targetIndex = event.detail.targetIndex;
-            console.log(`Target found: ${targetIndex}`);
-            
-            // Make sure the path is visible when a target is found
-            arPathObjects.forEach(obj => {
-                obj.visible = true;
-            });
-        });
-        
-        // Add an event listener for when AR targets are lost
-        document.addEventListener("targetLost", (event) => {
-            const targetIndex = event.detail.targetIndex;
-            console.log(`Target lost: ${targetIndex}`);
-        });
-        
-        arInitialized = true;
-        window.arReady = true;
-        console.log("AR initialized successfully");
-        return true;
-    }
 
     function waitForGraph() {
         if (
@@ -112,24 +64,6 @@ window.addEventListener("load", () => {
                 fillOpacity: 0.9
             }).addTo(map).bindPopup("You are here");
 
-            // Try to initialize AR
-            if (!arInitialized) {
-                // Try to initialize AR now
-                waitForMindAR();
-                
-                // Also set up a periodic check to initialize AR if not ready yet
-                const arCheckInterval = setInterval(() => {
-                    if (!arInitialized) {
-                        if (waitForMindAR()) {
-                            clearInterval(arCheckInterval);
-                            console.log("AR initialized after waiting");
-                        }
-                    } else {
-                        clearInterval(arCheckInterval);
-                    }
-                }, 1000);
-            }
-
             // Expose a global function to go to a destination
             window.goTo = function (targetNodeId) {
                 if (!currentMarkerId) {
@@ -139,33 +73,10 @@ window.addEventListener("load", () => {
                 const result = dijkstra(currentMarkerId, targetNodeId);
                 if (result.path) {
                     drawPath(result.path);
-                    
-                    // Try to draw AR path - if AR isn't ready yet, queue it up
-                    if (arInitialized) {
-                        drawARPath(result.path);
-                    } else {
-                        console.log("AR not ready, queueing AR path drawing");
-                        const pathToDisplay = result.path;
-                        const checkARAndDraw = setInterval(() => {
-                            if (arInitialized) {
-                                drawARPath(pathToDisplay);
-                                clearInterval(checkARAndDraw);
-                            }
-                        }, 1000);
-                        
-                        // Stop checking after 10 seconds
-                        setTimeout(() => {
-                            clearInterval(checkARAndDraw);
-                            console.warn("AR initialization timed out");
-                        }, 10000);
-                    }
-                    
                     console.log(`Shortest path from ${currentMarkerId} to ${targetNodeId}:`, result.path);
                     console.log("Total distance:", result.distance, "m");
-                    return result; // Return the result for other uses
                 } else {
                     console.warn("No path found.");
-                    return null;
                 }
             };
 
@@ -180,7 +91,6 @@ window.addEventListener("load", () => {
                 userMarker.setLatLng([match.y, match.x]);
                 userMarker.openPopup();
                 clearPath();
-                clearARPath();
             };
 
             // Auto-set initial location for testing
@@ -281,127 +191,10 @@ window.addEventListener("load", () => {
                     }
                 }
             }
-
-            // Create Three.js objects for AR path
-            function drawARPath(path) {
-                clearARPath();
-                
-                if (!window.mindarScene) {
-                    console.error("MindAR scene not initialized - cannot draw AR path");
-                    return;
-                }
-
-                // Create a group for all path objects
-                const pathGroup = new THREE.Group();
-                window.mindarScene.add(pathGroup);
-                arPathObjects.push(pathGroup);
-
-                // Convert from 2D map coordinates to AR space
-                // This conversion will need tuning based on your scene scale
-                const AR_SCALE = 0.01; // Scale factor to convert from map units to AR units
-                const AR_HEIGHT = 0; // Height above the ground in AR space
-
-                console.log("Drawing AR path with", path.length, "nodes");
-                
-                for (let i = 0; i < path.length - 1; i++) {
-                    const fromNode = nodeMap[path[i]];
-                    const toNode = nodeMap[path[i + 1]];
-                    
-                    // Calculate direction vector
-                    const dirVec = new THREE.Vector3(
-                        toNode.x - fromNode.x,
-                        0,
-                        toNode.y - fromNode.y  // y in 2D becomes z in 3D
-                    );
-                    
-                    // Normalize for direction
-                    dirVec.normalize();
-                    
-                    // Create arrow as cone geometry
-                    const arrowGeometry = new THREE.ConeGeometry(0.03, 0.1, 8);
-                    
-                    // Rotate to point in direction of travel
-                    arrowGeometry.rotateX(Math.PI / 2);
-                    
-                    const arrowMaterial = new THREE.MeshBasicMaterial({ color: 0xffff00 });
-                    const arrow = new THREE.Mesh(arrowGeometry, arrowMaterial);
-                    
-                    // Position at midpoint between nodes
-                    const midpoint = {
-                        x: (fromNode.x + toNode.x) / 2,
-                        y: (fromNode.y + toNode.y) / 2
-                    };
-                    
-                    arrow.position.set(
-                        midpoint.x * AR_SCALE, 
-                        AR_HEIGHT, 
-                        midpoint.y * AR_SCALE
-                    );
-                    
-                    // Make arrow point in the direction of the path
-                    arrow.lookAt(
-                        toNode.x * AR_SCALE,
-                        AR_HEIGHT,
-                        toNode.y * AR_SCALE
-                    );
-                    
-                    // Add to group
-                    pathGroup.add(arrow);
-                    
-                    // Add line between nodes
-                    const lineMaterial = new THREE.LineBasicMaterial({ color: 0x00ff00, linewidth: 3 });
-                    const lineGeometry = new THREE.BufferGeometry().setFromPoints([
-                        new THREE.Vector3(fromNode.x * AR_SCALE, AR_HEIGHT, fromNode.y * AR_SCALE),
-                        new THREE.Vector3(toNode.x * AR_SCALE, AR_HEIGHT, toNode.y * AR_SCALE)
-                    ]);
-                    
-                    const line = new THREE.Line(lineGeometry, lineMaterial);
-                    pathGroup.add(line);
-                }
-                
-                // Make sure the group is visible
-                pathGroup.visible = true;
-                
-                console.log("AR path created with", pathGroup.children.length, "objects");
-            }
-
-            function clearARPath() {
-                if (window.mindarScene) {
-                    arPathObjects.forEach(obj => {
-                        window.mindarScene.remove(obj);
-                        // Properly dispose of geometries and materials
-                        if (obj.children) {
-                            obj.children.forEach(child => {
-                                if (child.geometry) child.geometry.dispose();
-                                if (child.material) child.material.dispose();
-                            });
-                        }
-                    });
-                }
-                arPathObjects = [];
-            }
-
-            // Expose a function to manually initialize AR
-            window.initializeAR = function() {
-                return waitForMindAR();
-            };
-            
-            // Expose a function to check AR status
-            window.checkARStatus = function() {
-                console.log("AR initialized:", arInitialized);
-                console.log("AR ready:", window.arReady);
-                if (window.mindarScene) {
-                    console.log("AR scene exists with", window.mindarScene.children.length, "objects");
-                } else {
-                    console.log("AR scene does not exist");
-                }
-                console.log("AR path objects:", arPathObjects.length);
-            };
-            
         } else {
             setTimeout(waitForGraph, 100);
         }
     }
-    
+
     waitForGraph();
 });
