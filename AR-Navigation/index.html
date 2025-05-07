@@ -110,7 +110,7 @@
     <script>
       const start = async () => {
         try {
-          const mindarThree = new window.MINDAR.IMAGE.MindARThree({
+          window.mindarThree = new window.MINDAR.IMAGE.MindARThree({
             container: document.querySelector("#ar-container"),
             imageTargetSrc: "./test.mind" // Ensure this includes multiple image targets
           });
