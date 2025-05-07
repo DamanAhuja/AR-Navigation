@@ -147,50 +147,87 @@ window.addEventListener("load", () => {
             }
 
             function drawPath(path) {
-                clearPath();
+  clearPath();
 
-                for (let i = 0; i < path.length - 1; i++) {
-                    const from = nodeMap[path[i]];
-                    const to = nodeMap[path[i + 1]];
-                    const edge = window.extractedEdges.find(edge =>
-                        (edge.from === from.id && edge.to === to.id) ||
-                        (edge.from === to.id && edge.to === from.id)
-                    );
+  const arrowMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+  const arrowLength = 0.2;
+  const arrowRadius = 0.05;
 
-                    if (edge && edge.controlPoints && edge.controlPoints.length === 2) {
-                        const cp1 = {
-                            x: edge.controlPoints[0].x * scaleFactorX,
-                            y: (svgHeight - edge.controlPoints[0].y) * scaleFactorY
-                        };
-                        const cp2 = {
-                            x: edge.controlPoints[1].x * scaleFactorX,
-                            y: (svgHeight - edge.controlPoints[1].y) * scaleFactorY
-                        };
+  // Clear old arrows
+  if (window.arArrows) {
+    window.arArrows.forEach(arrow => mindarThree.scene.remove(arrow));
+  }
+  window.arArrows = [];
 
-                        const latlngs = [];
-                        const steps = 20;
-                        for (let t = 0; t <= 1; t += 1 / steps) {
-                            const x = Math.pow(1 - t, 3) * from.x +
-                                3 * Math.pow(1 - t, 2) * t * cp1.x +
-                                3 * (1 - t) * Math.pow(t, 2) * cp2.x +
-                                Math.pow(t, 3) * to.x;
+  for (let i = 0; i < path.length - 1; i++) {
+    const from = nodeMap[path[i]];
+    const to = nodeMap[path[i + 1]];
 
-                            const y = Math.pow(1 - t, 3) * from.y +
-                                3 * Math.pow(1 - t, 2) * t * cp1.y +
-                                3 * (1 - t) * Math.pow(t, 2) * cp2.y +
-                                Math.pow(t, 3) * to.y;
+    const edge = window.extractedEdges.find(edge =>
+      (edge.from === from.id && edge.to === to.id) ||
+      (edge.from === to.id && edge.to === from.id)
+    );
 
-                            latlngs.push([y, x]);
-                        }
+    if (edge && edge.controlPoints && edge.controlPoints.length === 2) {
+      const cp1 = {
+        x: edge.controlPoints[0].x * scaleFactorX,
+        y: (svgHeight - edge.controlPoints[0].y) * scaleFactorY
+      };
+      const cp2 = {
+        x: edge.controlPoints[1].x * scaleFactorX,
+        y: (svgHeight - edge.controlPoints[1].y) * scaleFactorY
+      };
 
-                        const curve = L.polyline(latlngs, { color: 'green', weight: 4 }).addTo(map);
-                        pathLayers.push(curve);
-                    } else {
-                        const straight = L.polyline([[from.y, from.x], [to.y, to.x]], { color: 'green', weight: 4 }).addTo(map);
-                        pathLayers.push(straight);
-                    }
-                }
-            }
+      const latlngs = [];
+      const steps = 20;
+      for (let t = 0; t <= 1; t += 1 / steps) {
+        const x = Math.pow(1 - t, 3) * from.x +
+          3 * Math.pow(1 - t, 2) * t * cp1.x +
+          3 * (1 - t) * Math.pow(t, 2) * cp2.x +
+          Math.pow(t, 3) * to.x;
+
+        const y = Math.pow(1 - t, 3) * from.y +
+          3 * Math.pow(1 - t, 2) * t * cp1.y +
+          3 * (1 - t) * Math.pow(t, 2) * cp2.y +
+          Math.pow(t, 3) * to.y;
+
+        latlngs.push([y, x]);
+
+        // Add AR arrow at some intervals (e.g., every 5 steps)
+        if (Math.round(t * steps) % 5 === 0) {
+          const arrow = new THREE.Mesh(
+            new THREE.ConeGeometry(arrowRadius, arrowLength, 8),
+            arrowMaterial
+          );
+          arrow.position.set(x / 1000, 0, -y / 1000); // scale coordinates
+          arrow.rotation.x = -Math.PI / 2; // point forward
+          mindarThree.scene.add(arrow);
+          window.arArrows.push(arrow);
+        }
+      }
+
+      const curve = L.polyline(latlngs, { color: 'green', weight: 4 }).addTo(map);
+      pathLayers.push(curve);
+
+    } else {
+      const straight = L.polyline([[from.y, from.x], [to.y, to.x]], { color: 'green', weight: 4 }).addTo(map);
+      pathLayers.push(straight);
+
+      // Add arrow in AR for straight segment
+      const x = (from.x + to.x) / 2;
+      const y = (from.y + to.y) / 2;
+      const arrow = new THREE.Mesh(
+        new THREE.ConeGeometry(arrowRadius, arrowLength, 8),
+        arrowMaterial
+      );
+      arrow.position.set(x / 1000, 0, -y / 1000); // adjust scaling and Z flip
+      arrow.rotation.x = -Math.PI / 2;
+      mindarThree.scene.add(arrow);
+      window.arArrows.push(arrow);
+    }
+  }
+}
+
         } else {
             setTimeout(waitForGraph, 100);
         }
