@@ -50,48 +50,24 @@ document.addEventListener("DOMContentLoaded", () => {
       }
   }
   
-  function updateDropdown() {
-      try {
-          // Destroy existing instance
-          choicesInstance.destroy();
-          
-          // Clear dropdown
-          while (dropdown.firstChild) {
-              dropdown.removeChild(dropdown.firstChild);
-          }
-          
-          // Add placeholder
-          const placeholderOption = document.createElement('option');
-          placeholderOption.value = "";
-          placeholderOption.text = "Select destination...";
-          placeholderOption.disabled = true;
-          placeholderOption.selected = true;
-          dropdown.appendChild(placeholderOption);
-          
-          // Add all nodes as options
-          window.extractedNodes.forEach(node => {
-              if (node && node.id) {
-                  const option = document.createElement('option');
-                  option.value = node.id;
-                  option.text = node.id;
-                  dropdown.appendChild(option);
-              }
-          });
-          
-          // Reinitialize with new options
-          choicesInstance = new Choices(dropdown, {
-              searchEnabled: true,
-              itemSelectText: '',
-              placeholder: true,
-              placeholderValue: "Select destination...",
-              searchPlaceholderValue: "Type to search..."
-          });
-          
-          console.log("[Choices] Dropdown successfully updated with node data");
-      } catch (error) {
-          console.error("[Choices] Error updating dropdown:", error);
-      }
-  }
+ function updateDropdown() {
+    try {
+        const choicesList = window.extractedNodes.map(node => ({
+            value: node.id,
+            label: node.id
+        }));
+        
+        choicesInstance.setChoices([
+            { value: "", label: "Select destination...", disabled: true, selected: true },
+            ...choicesList
+        ], 'value', 'label', true);
+        
+        console.log("[Choices] Dropdown successfully updated with node data");
+    } catch (error) {
+        console.error("[Choices] Error updating dropdown:", error);
+    }
+}
+
   
   function updateDropdownWithError() {
       try {
