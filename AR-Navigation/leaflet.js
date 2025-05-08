@@ -198,17 +198,30 @@ window.addEventListener("load", () => {
 
         latlngs.push([y, x]);
 
-        if (Math.round(t * steps) % 5 === 0) {
-          const arrow = new THREE.Mesh(
-            new THREE.ConeGeometry(arrowRadius, arrowLength, 8),
-            arrowMaterial
-          );
-          arrow.position.set(x / 1000, 0, -y / 1000);
-          arrow.rotation.x = -Math.PI / 2;
-          mindarThree.scene.add(arrow);
-          window.arArrows.push(arrow);
-          console.log(`[drawPath] Added curved arrow at (${x / 1000}, 0, ${-y / 1000})`);
-        }
+        const realDistance = Math.hypot(to.x - from.x, to.y - from.y) * 0.04254; // meters
+const meterInterval = 1; // place one arrow every 1 meter
+const numArrows = Math.floor(realDistance / meterInterval);
+let arrowCounter = 0;
+
+for (let t = 0; t <= 1; t += 1 / steps) {
+  const x = ...; // same bezier formula
+  const y = ...;
+
+  if ((arrowCounter * meterInterval) <= (t * realDistance)) {
+    const arrow = new THREE.Mesh(
+      new THREE.ConeGeometry(arrowRadius, arrowLength, 8),
+      arrowMaterial
+    );
+    arrow.position.set(x / 1000, 0, -y / 1000); // assuming 1 unit = 1 meter
+    arrow.rotation.x = -Math.PI / 2;
+    mindarThree.scene.add(arrow);
+    window.arArrows.push(arrow);
+    arrowCounter++;
+  }
+
+  latlngs.push([y, x]);
+}
+
       }
 
       const curve = L.polyline(latlngs, { color: 'green', weight: 4 }).addTo(map);
