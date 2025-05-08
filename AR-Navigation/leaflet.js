@@ -154,45 +154,21 @@ function createARArrows(navigationPoints, directionVectors) {
         
         // Create a one-time event listener to create arrows when MindAR is initialized
         document.addEventListener("targetFound", function createArrowsOnceTargetFound() {
-            // Only execute if we have a target and if mindarThree is now available
             if (window.mindarThree) {
                 actuallyCreateARArrows(navigationPoints, directionVectors);
-                // Remove this listener after first execution
                 document.removeEventListener("targetFound", createArrowsOnceTargetFound);
             }
         });
         return;
     }
-    
-    // If MindAR is already available, create arrows directly
+
+    // If MindAR is available, create arrows directly
     actuallyCreateARArrows(navigationPoints, directionVectors);
 }
 
-// Function to actually create the AR arrows in the scene
 function actuallyCreateARArrows(navigationPoints, directionVectors) {
     const scene = window.mindarThree.scene;
-    const anchors = [];
-    
-    // Get the first anchor (assuming it's the main tracking image)
-    // In a multi-marker scenario, you might need to adjust this logic
-    const mainAnchor = window.mindarThree.addAnchor(0);
-    
-    // Keep track of all created arrow objects for potential cleanup later
-    window.arNavigationArrows = window.arNavigationArrows || [];
-    
-    // Clear any existing navigation arrows
-    if (window.arNavigationArrows.length > 0) {
-        window.arNavigationArrows.forEach(arrow => {
-            if (arrow.parent) arrow.parent.remove(arrow);
-        });
-        window.arNavigationArrows = [];
-    }
-    
-    console.log("Creating AR arrows for navigation...");
-    
-    // Create a group to hold all arrows
     const arrowsGroup = new THREE.Group();
-    mainAnchor.group.add(arrowsGroup);
     
     // Create arrows at each navigation point
     navigationPoints.forEach((point, index) => {
@@ -205,7 +181,6 @@ function actuallyCreateARArrows(navigationPoints, directionVectors) {
         const arrowGroup = createArrow(direction.angle);
         
         // Position the arrow at the real-world coordinates
-        // Convert from meters to THREE.js units
         arrowGroup.position.set(
             parseFloat(point.realWorldMeters.x), 
             0.05, // Small height above ground
@@ -214,46 +189,59 @@ function actuallyCreateARArrows(navigationPoints, directionVectors) {
         
         // Add to the scene
         arrowsGroup.add(arrowGroup);
-        
-        // Store for potential cleanup
-        window.arNavigationArrows.push(arrowGroup);
     });
     
-    console.log(`Created ${window.arNavigationArrows.length} AR navigation arrows`);
+    // Add arrows group to the scene
+    scene.add(arrowsGroup);
     
-    // Helper function to create an arrow pointing in the given direction
-    function createArrow(angleDegrees) {
-        // Convert degrees to radians for THREE.js
-        const angleRadians = (angleDegrees * Math.PI / 180);
-        
-        // Create arrow group
-        const arrowGroup = new THREE.Group();
-        
-        // Create arrow body (cylinder)
-        const bodyGeometry = new THREE.CylinderGeometry(0.02, 0.02, 0.15, 8);
-        const bodyMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
-        const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
-        body.position.y = 0.075;
-        arrowGroup.add(body);
-        
-        // Create arrow head (cone)
-        const headGeometry = new THREE.ConeGeometry(0.05, 0.08, 8);
-        const headMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
-        const head = new THREE.Mesh(headGeometry, headMaterial);
-        head.position.y = 0.19;
-        arrowGroup.add(head);
-        
-        // Rotate the arrow to point in the correct direction
-        // The default arrow points up (+Y), so we need to rotate it to point in the XZ plane
-        arrowGroup.rotation.set(
-            Math.PI / 2, // Rotate 90 degrees around X to make arrow point forward (+Z)
-            0,
-            angleRadians // Rotate around Y to set the direction
-        );
-        
-        return arrowGroup;
-    }
-}function drawPath(path) {
+    console.log(`Created ${navigationPoints.length} AR navigation arrows`);
+}
+
+// Helper function to create an arrow pointing in the given direction
+function createArrow(angleDegrees) {
+    const angleRadians = (angleDegrees * Math.PI / 180);
+    
+    const arrowGroup = new THREE.Group();
+    
+    // Create arrow body (cylinder)
+    const bodyGeometry = new THREE.CylinderGeometry(0.02, 0.02, 0.15, 8);
+    const bodyMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+    const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+    body.position.y = 0.075;
+    arrowGroup.add(body);
+    
+    // Create arrow head (cone)
+    const headGeometry = new THREE.ConeGeometry(0.05, 0.08, 8);
+    const headMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+    const head = new THREE.Mesh(headGeometry, headMaterial);
+    head.position.y = 0.19;
+    arrowGroup.add(head);
+    
+    // Rotate the arrow to point in the correct direction
+    arrowGroup.rotation.set(
+        Math.PI / 2, // Rotate 90 degrees around X to make arrow point forward (+Z)
+        0,
+        angleRadians // Rotate around Y to set the direction
+    );
+    
+    return arrowGroup;
+}
+
+// Example of calling the function immediately with predefined navigation points and direction vectors
+const navigationPoints = [
+    { realWorldMeters: { x: 1, y: 1 } },
+    { realWorldMeters: { x: 3, y: 1 } },
+    { realWorldMeters: { x: 3, y: 3 } },
+];
+
+const directionVectors = [
+    { angle: 0 }, // Right
+    { angle: 90 }, // Up
+    { angle: 180 }, // Left
+];
+
+createARArrows(navigationPoints, directionVectors);
+function drawPath(path) {
     clearPath();
     
     // Array to store all path points with their real-world distances
