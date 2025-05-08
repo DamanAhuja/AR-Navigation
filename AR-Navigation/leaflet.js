@@ -150,8 +150,8 @@ window.addEventListener("load", () => {
   clearPath();
 
   const arrowMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
-  const arrowLength = 0.2;
-  const arrowRadius = 0.05;
+  const arrowLength = 1.0;
+  const arrowRadius = 1.0;
 
   console.log("[drawPath] Starting to draw path with", path.length, "nodes");
 
