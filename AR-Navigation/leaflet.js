@@ -156,6 +156,8 @@ window.addEventListener("load", () => {
 
     window.arArrows = [];
 
+    console.log("Drawing path for nodes:", path);
+
     for (let i = 0; i < path.length - 1; i++) {
         const from = nodeMap[path[i]];
         const to = nodeMap[path[i + 1]];
@@ -167,7 +169,11 @@ window.addEventListener("load", () => {
 
         const latlngs = [];
 
+        console.log(`Processing edge from ${from.id} to ${to.id}`);
+
         if (edge && edge.controlPoints && edge.controlPoints.length === 2) {
+            console.log("Edge has control points:", edge.controlPoints);
+
             const cp1 = {
                 x: edge.controlPoints[0].x * scaleFactorX,
                 y: (svgHeight - edge.controlPoints[0].y) * scaleFactorY
@@ -181,6 +187,9 @@ window.addEventListener("load", () => {
             const realDistance = Math.hypot(to.x - from.x, to.y - from.y);
             const numArrows = Math.floor(realDistance / meterInterval);
             let arrowCounter = 0;
+
+            console.log(`Real distance between points: ${realDistance} meters`);
+            console.log(`Placing ${numArrows} arrows along the path`);
 
             for (let t = 0; t <= 1; t += 1 / steps) {
                 const x = Math.pow(1 - t, 3) * from.x +
@@ -206,15 +215,21 @@ window.addEventListener("load", () => {
                     mindarThree.scene.add(arrow);
                     window.arArrows.push(arrow);
                     arrowCounter++;
+
+                    console.log(`Arrow placed at distance: ${distanceAlong} meters (t = ${t})`);
                 }
             }
 
             const curve = L.polyline(latlngs, { color: 'green', weight: 4 }).addTo(map);
             pathLayers.push(curve);
+
+            console.log("Bezier curve drawn between points.");
         } else {
             const latlngs = [[from.y / scaleFactorY, from.x / scaleFactorX], [to.y / scaleFactorY, to.x / scaleFactorX]];
             const line = L.polyline(latlngs, { color: 'green', weight: 4 }).addTo(map);
             pathLayers.push(line);
+
+            console.log("No control points, drawing a straight line.");
 
             const x = (from.x + to.x) / 2;
             const y = (from.y + to.y) / 2;
@@ -226,16 +241,14 @@ window.addEventListener("load", () => {
             arrow.rotation.x = -Math.PI / 2;
             mindarThree.scene.add(arrow);
             window.arArrows.push(arrow);
+
+            console.log(`Arrow placed at midpoint: (${x}, ${y})`);
         }
     }
+
+    console.log("Path drawing completed.");
 }
 
-
-
-        } else {
-            setTimeout(waitForGraph, 100);
-        }
-    }
 
     waitForGraph();
 });
