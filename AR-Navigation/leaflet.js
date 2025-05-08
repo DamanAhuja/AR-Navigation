@@ -147,50 +147,149 @@ window.addEventListener("load", () => {
             }
 
             function drawPath(path) {
-                clearPath();
+    clearPath();
+    
+    // Array to store all path points with their real-world distances
+    let cumulativePathPoints = [];
+    let cumulativeDistance = 0;
+    
+    // First pass: Calculate all path points and their cumulative distances
+    for (let i = 0; i < path.length - 1; i++) {
+        const from = nodeMap[path[i]];
+        const to = nodeMap[path[i + 1]];
+        const edge = window.extractedEdges.find(edge =>
+            (edge.from === from.id && edge.to === to.id) ||
+            (edge.from === to.id && edge.to === from.id)
+        );
 
-                for (let i = 0; i < path.length - 1; i++) {
-                    const from = nodeMap[path[i]];
-                    const to = nodeMap[path[i + 1]];
-                    const edge = window.extractedEdges.find(edge =>
-                        (edge.from === from.id && edge.to === to.id) ||
-                        (edge.from === to.id && edge.to === from.id)
-                    );
+        if (edge && edge.controlPoints && edge.controlPoints.length === 2) {
+            // For curved paths (Bezier)
+            const cp1 = {
+                x: edge.controlPoints[0].x * scaleFactorX,
+                y: (svgHeight - edge.controlPoints[0].y) * scaleFactorY
+            };
+            const cp2 = {
+                x: edge.controlPoints[1].x * scaleFactorX,
+                y: (svgHeight - edge.controlPoints[1].y) * scaleFactorY
+            };
 
-                    if (edge && edge.controlPoints && edge.controlPoints.length === 2) {
-                        const cp1 = {
-                            x: edge.controlPoints[0].x * scaleFactorX,
-                            y: (svgHeight - edge.controlPoints[0].y) * scaleFactorY
-                        };
-                        const cp2 = {
-                            x: edge.controlPoints[1].x * scaleFactorX,
-                            y: (svgHeight - edge.controlPoints[1].y) * scaleFactorY
-                        };
+            const latlngs = [];
+            const steps = 20;
+            
+            // Start point
+            let prevPoint = { x: from.x, y: from.y };
+            cumulativePathPoints.push({ 
+                point: [from.y, from.x], 
+                distance: cumulativeDistance 
+            });
+            
+            // Calculate points along the Bezier curve
+            for (let t = 1 / steps; t <= 1; t += 1 / steps) {
+                const x = Math.pow(1 - t, 3) * from.x +
+                    3 * Math.pow(1 - t, 2) * t * cp1.x +
+                    3 * (1 - t) * Math.pow(t, 2) * cp2.x +
+                    Math.pow(t, 3) * to.x;
 
-                        const latlngs = [];
-                        const steps = 20;
-                        for (let t = 0; t <= 1; t += 1 / steps) {
-                            const x = Math.pow(1 - t, 3) * from.x +
-                                3 * Math.pow(1 - t, 2) * t * cp1.x +
-                                3 * (1 - t) * Math.pow(t, 2) * cp2.x +
-                                Math.pow(t, 3) * to.x;
+                const y = Math.pow(1 - t, 3) * from.y +
+                    3 * Math.pow(1 - t, 2) * t * cp1.y +
+                    3 * (1 - t) * Math.pow(t, 2) * cp2.y +
+                    Math.pow(t, 3) * to.y;
 
-                            const y = Math.pow(1 - t, 3) * from.y +
-                                3 * Math.pow(1 - t, 2) * t * cp1.y +
-                                3 * (1 - t) * Math.pow(t, 2) * cp2.y +
-                                Math.pow(t, 3) * to.y;
-
-                            latlngs.push([y, x]);
-                        }
-
-                        const curve = L.polyline(latlngs, { color: 'green', weight: 4 }).addTo(map);
-                        pathLayers.push(curve);
-                    } else {
-                        const straight = L.polyline([[from.y, from.x], [to.y, to.x]], { color: 'green', weight: 4 }).addTo(map);
-                        pathLayers.push(straight);
-                    }
-                }
+                // Calculate real distance in scaled pixels
+                const segmentDistance = Math.hypot(x - prevPoint.x, y - prevPoint.y);
+                cumulativeDistance += segmentDistance;
+                
+                // Store this point with its cumulative distance
+                cumulativePathPoints.push({ 
+                    point: [y, x], 
+                    distance: cumulativeDistance 
+                });
+                
+                latlngs.push([y, x]);
+                prevPoint = { x, y };
             }
+
+            const curve = L.polyline(latlngs, { color: 'green', weight: 4 }).addTo(map);
+            pathLayers.push(curve);
+        } else {
+            // For straight line paths
+            const segmentDistance = Math.hypot(to.x - from.x, to.y - from.y);
+            
+            // Add the starting point of this segment with its cumulative distance
+            cumulativePathPoints.push({ 
+                point: [from.y, from.x], 
+                distance: cumulativeDistance 
+            });
+            
+            // Add the ending point with updated cumulative distance
+            cumulativeDistance += segmentDistance;
+            cumulativePathPoints.push({ 
+                point: [to.y, to.x], 
+                distance: cumulativeDistance 
+            });
+            
+            const straight = L.polyline([[from.y, from.x], [to.y, to.x]], { color: 'green', weight: 4 }).addTo(map);
+            pathLayers.push(straight);
+        }
+    }
+    
+    // Convert from pixel distances to meters using the scale factor (0.04254 meters per unit)
+    const meterConversionFactor = 0.04254;
+    const totalDistanceMeters = cumulativeDistance * meterConversionFactor;
+    console.log(`Total path distance: ${totalDistanceMeters.toFixed(2)} meters`);
+    
+    // Second pass: Place markers at 1-meter intervals
+    const arPoints = []; // Array to store points for AR arrows
+    let nextMarkerDistance = 1.0; // First marker at 1m
+    
+    while (nextMarkerDistance < totalDistanceMeters) {
+        // Find the corresponding point at this distance
+        const targetDistancePixels = nextMarkerDistance / meterConversionFactor;
+        
+        // Find the two points that bracket our target distance
+        let beforeIndex = 0;
+        for (let i = 1; i < cumulativePathPoints.length; i++) {
+            if (cumulativePathPoints[i].distance > targetDistancePixels) {
+                beforeIndex = i - 1;
+                break;
+            }
+        }
+        
+        const beforePoint = cumulativePathPoints[beforeIndex];
+        const afterPoint = cumulativePathPoints[beforeIndex + 1];
+        
+        // Calculate the fraction of the way between these two points
+        const segmentDistance = afterPoint.distance - beforePoint.distance;
+        const fraction = (targetDistancePixels - beforePoint.distance) / segmentDistance;
+        
+        // Interpolate the position
+        const lat = beforePoint.point[0] + fraction * (afterPoint.point[0] - beforePoint.point[0]);
+        const lng = beforePoint.point[1] + fraction * (afterPoint.point[1] - beforePoint.point[1]);
+        
+        // Create a marker at this point
+        const marker = L.circleMarker([lat, lng], {
+            radius: 3,
+            color: 'orange',
+            fillColor: 'yellow',
+            fillOpacity: 1
+        }).addTo(map);
+        marker.bindPopup(`AR Point: ${nextMarkerDistance.toFixed(1)}m`);
+        pathLayers.push(marker);
+        
+        // Store the point for AR use
+        arPoints.push({
+            position: [lat, lng],
+            distanceMeters: nextMarkerDistance.toFixed(1)
+        });
+        
+        // Move to next meter mark
+        nextMarkerDistance += 1.0;
+    }
+    
+    // Store AR points for later use
+    window.arNavigationPoints = arPoints;
+    console.log("AR Navigation Points:", arPoints);
+}
         } else {
             setTimeout(waitForGraph, 100);
         }
