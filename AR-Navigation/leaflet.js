@@ -153,9 +153,14 @@ window.addEventListener("load", () => {
   const arrowLength = 0.2;
   const arrowRadius = 0.05;
 
+  console.log("[drawPath] Starting to draw path with", path.length, "nodes");
+
   // Clear old arrows
   if (window.arArrows) {
-    window.arArrows.forEach(arrow => mindarThree.scene.remove(arrow));
+    window.arArrows.forEach(arrow => {
+      mindarThree.scene.remove(arrow);
+      console.log("[drawPath] Removed old arrow");
+    });
   }
   window.arArrows = [];
 
@@ -193,40 +198,42 @@ window.addEventListener("load", () => {
 
         latlngs.push([y, x]);
 
-        // Add AR arrow at some intervals (e.g., every 5 steps)
         if (Math.round(t * steps) % 5 === 0) {
           const arrow = new THREE.Mesh(
             new THREE.ConeGeometry(arrowRadius, arrowLength, 8),
             arrowMaterial
           );
-          arrow.position.set(x / 1000, 0, -y / 1000); // scale coordinates
-          arrow.rotation.x = -Math.PI / 2; // point forward
+          arrow.position.set(x / 1000, 0, -y / 1000);
+          arrow.rotation.x = -Math.PI / 2;
           mindarThree.scene.add(arrow);
           window.arArrows.push(arrow);
+          console.log(`[drawPath] Added curved arrow at (${x / 1000}, 0, ${-y / 1000})`);
         }
       }
 
       const curve = L.polyline(latlngs, { color: 'green', weight: 4 }).addTo(map);
       pathLayers.push(curve);
-
     } else {
       const straight = L.polyline([[from.y, from.x], [to.y, to.x]], { color: 'green', weight: 4 }).addTo(map);
       pathLayers.push(straight);
 
-      // Add arrow in AR for straight segment
       const x = (from.x + to.x) / 2;
       const y = (from.y + to.y) / 2;
       const arrow = new THREE.Mesh(
         new THREE.ConeGeometry(arrowRadius, arrowLength, 8),
         arrowMaterial
       );
-      arrow.position.set(x / 1000, 0, -y / 1000); // adjust scaling and Z flip
+      arrow.position.set(x / 1000, 0, -y / 1000);
       arrow.rotation.x = -Math.PI / 2;
       mindarThree.scene.add(arrow);
       window.arArrows.push(arrow);
+      console.log(`[drawPath] Added straight arrow at (${x / 1000}, 0, ${-y / 1000})`);
     }
   }
+
+  console.log(`[drawPath] Completed. Total arrows added: ${window.arArrows.length}`);
 }
+
 
         } else {
             setTimeout(waitForGraph, 100);
