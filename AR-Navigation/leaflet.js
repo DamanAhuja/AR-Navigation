@@ -146,7 +146,114 @@ window.addEventListener("load", () => {
                 pathLayers = [];
             }
 
-            function drawPath(path) {
+       // Create AR arrows function - to be added to the script
+function createARArrows(navigationPoints, directionVectors) {
+    // Check if mindarThree is available
+    if (!window.mindarThree) {
+        console.warn("MindAR not initialized yet. AR arrows will be created when MindAR is ready.");
+        
+        // Create a one-time event listener to create arrows when MindAR is initialized
+        document.addEventListener("targetFound", function createArrowsOnceTargetFound() {
+            // Only execute if we have a target and if mindarThree is now available
+            if (window.mindarThree) {
+                actuallyCreateARArrows(navigationPoints, directionVectors);
+                // Remove this listener after first execution
+                document.removeEventListener("targetFound", createArrowsOnceTargetFound);
+            }
+        });
+        return;
+    }
+    
+    // If MindAR is already available, create arrows directly
+    actuallyCreateARArrows(navigationPoints, directionVectors);
+}
+
+// Function to actually create the AR arrows in the scene
+function actuallyCreateARArrows(navigationPoints, directionVectors) {
+    const scene = window.mindarThree.scene;
+    const anchors = [];
+    
+    // Get the first anchor (assuming it's the main tracking image)
+    // In a multi-marker scenario, you might need to adjust this logic
+    const mainAnchor = window.mindarThree.addAnchor(0);
+    
+    // Keep track of all created arrow objects for potential cleanup later
+    window.arNavigationArrows = window.arNavigationArrows || [];
+    
+    // Clear any existing navigation arrows
+    if (window.arNavigationArrows.length > 0) {
+        window.arNavigationArrows.forEach(arrow => {
+            if (arrow.parent) arrow.parent.remove(arrow);
+        });
+        window.arNavigationArrows = [];
+    }
+    
+    console.log("Creating AR arrows for navigation...");
+    
+    // Create a group to hold all arrows
+    const arrowsGroup = new THREE.Group();
+    mainAnchor.group.add(arrowsGroup);
+    
+    // Create arrows at each navigation point
+    navigationPoints.forEach((point, index) => {
+        // Skip the last point as there's no direction from it
+        if (index >= directionVectors.length) return;
+        
+        const direction = directionVectors[index];
+        
+        // Create arrow geometry
+        const arrowGroup = createArrow(direction.angle);
+        
+        // Position the arrow at the real-world coordinates
+        // Convert from meters to THREE.js units
+        arrowGroup.position.set(
+            parseFloat(point.realWorldMeters.x), 
+            0.05, // Small height above ground
+            parseFloat(point.realWorldMeters.y)
+        );
+        
+        // Add to the scene
+        arrowsGroup.add(arrowGroup);
+        
+        // Store for potential cleanup
+        window.arNavigationArrows.push(arrowGroup);
+    });
+    
+    console.log(`Created ${window.arNavigationArrows.length} AR navigation arrows`);
+    
+    // Helper function to create an arrow pointing in the given direction
+    function createArrow(angleDegrees) {
+        // Convert degrees to radians for THREE.js
+        const angleRadians = (angleDegrees * Math.PI / 180);
+        
+        // Create arrow group
+        const arrowGroup = new THREE.Group();
+        
+        // Create arrow body (cylinder)
+        const bodyGeometry = new THREE.CylinderGeometry(0.02, 0.02, 0.15, 8);
+        const bodyMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+        const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+        body.position.y = 0.075;
+        arrowGroup.add(body);
+        
+        // Create arrow head (cone)
+        const headGeometry = new THREE.ConeGeometry(0.05, 0.08, 8);
+        const headMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+        const head = new THREE.Mesh(headGeometry, headMaterial);
+        head.position.y = 0.19;
+        arrowGroup.add(head);
+        
+        // Rotate the arrow to point in the correct direction
+        // The default arrow points up (+Y), so we need to rotate it to point in the XZ plane
+        arrowGroup.rotation.set(
+            Math.PI / 2, // Rotate 90 degrees around X to make arrow point forward (+Z)
+            0,
+            angleRadians // Rotate around Y to set the direction
+        );
+        
+        return arrowGroup;
+    }
+}function drawPath(path) {
     clearPath();
     
     // Array to store all path points with their real-world distances
@@ -339,8 +446,8 @@ window.addEventListener("load", () => {
             X: ${point.realWorldMeters.x}m, Y: ${point.realWorldMeters.y}m from origin`);
     });
     
-    // You might want to calculate and log the direction vectors between points
-    // This would be useful for orienting AR arrows
+    // Calculate and store direction vectors between points
+    const directionVectors = [];
     console.log("=== Direction Vectors Between Points ===");
     for (let i = 0; i < arPointsWithRealCoordinates.length - 1; i++) {
         const current = arPointsWithRealCoordinates[i];
@@ -353,8 +460,22 @@ window.addEventListener("load", () => {
         const angleRad = Math.atan2(dirY, dirX);
         const angleDeg = (angleRad * 180 / Math.PI).toFixed(1);
         
+        directionVectors.push({
+            from: current,
+            to: next,
+            dirX: parseFloat(dirX.toFixed(2)),
+            dirY: parseFloat(dirY.toFixed(2)),
+            angle: parseFloat(angleDeg)
+        });
+        
         console.log(`Direction ${i + 1} to ${i + 2}: ${angleDeg}° (${dirX.toFixed(2)}m, ${dirY.toFixed(2)}m)`);
     }
+    
+    // Store direction vectors for AR use
+    window.arDirectionVectors = directionVectors;
+    
+    // Create AR arrows based on the navigation points
+    createARArrows(arPointsWithRealCoordinates, directionVectors);
 }
         } else {
             setTimeout(waitForGraph, 100);
