@@ -148,10 +148,12 @@ window.addEventListener("load", () => {
 
             function drawPath(path) {
     clearPath();
-
+    
+    // Array to store all path points with their real-world distances
     let cumulativePathPoints = [];
     let cumulativeDistance = 0;
-
+    
+    // First pass: Calculate all path points and their cumulative distances
     for (let i = 0; i < path.length - 1; i++) {
         const from = nodeMap[path[i]];
         const to = nodeMap[path[i + 1]];
@@ -161,6 +163,7 @@ window.addEventListener("load", () => {
         );
 
         if (edge && edge.controlPoints && edge.controlPoints.length === 2) {
+            // For curved paths (Bezier)
             const cp1 = {
                 x: edge.controlPoints[0].x * scaleFactorX,
                 y: (svgHeight - edge.controlPoints[0].y) * scaleFactorY
@@ -172,12 +175,15 @@ window.addEventListener("load", () => {
 
             const latlngs = [];
             const steps = 20;
+            
+            // Start point
             let prevPoint = { x: from.x, y: from.y };
             cumulativePathPoints.push({ 
                 point: [from.y, from.x], 
                 distance: cumulativeDistance 
             });
-
+            
+            // Calculate points along the Bezier curve
             for (let t = 1 / steps; t <= 1; t += 1 / steps) {
                 const x = Math.pow(1 - t, 3) * from.x +
                     3 * Math.pow(1 - t, 2) * t * cp1.x +
@@ -189,14 +195,16 @@ window.addEventListener("load", () => {
                     3 * (1 - t) * Math.pow(t, 2) * cp2.y +
                     Math.pow(t, 3) * to.y;
 
+                // Calculate real distance in scaled pixels
                 const segmentDistance = Math.hypot(x - prevPoint.x, y - prevPoint.y);
                 cumulativeDistance += segmentDistance;
-
+                
+                // Store this point with its cumulative distance
                 cumulativePathPoints.push({ 
                     point: [y, x], 
                     distance: cumulativeDistance 
                 });
-
+                
                 latlngs.push([y, x]);
                 prevPoint = { x, y };
             }
@@ -204,34 +212,41 @@ window.addEventListener("load", () => {
             const curve = L.polyline(latlngs, { color: 'green', weight: 4 }).addTo(map);
             pathLayers.push(curve);
         } else {
+            // For straight line paths
             const segmentDistance = Math.hypot(to.x - from.x, to.y - from.y);
-
+            
+            // Add the starting point of this segment with its cumulative distance
             cumulativePathPoints.push({ 
                 point: [from.y, from.x], 
                 distance: cumulativeDistance 
             });
-
+            
+            // Add the ending point with updated cumulative distance
             cumulativeDistance += segmentDistance;
             cumulativePathPoints.push({ 
                 point: [to.y, to.x], 
                 distance: cumulativeDistance 
             });
-
+            
             const straight = L.polyline([[from.y, from.x], [to.y, to.x]], { color: 'green', weight: 4 }).addTo(map);
             pathLayers.push(straight);
         }
     }
-
+    
+    // Convert from pixel distances to meters using the scale factor (0.04254 meters per unit)
     const meterConversionFactor = 0.04254;
     const totalDistanceMeters = cumulativeDistance * meterConversionFactor;
     console.log(`Total path distance: ${totalDistanceMeters.toFixed(2)} meters`);
-
-    const arPoints = [];
-    let nextMarkerDistance = 1.0;
-
+    
+    // Second pass: Place markers at 1-meter intervals
+    const arPoints = []; // Array to store points for AR arrows
+    let nextMarkerDistance = 1.0; // First marker at 1m
+    
     while (nextMarkerDistance < totalDistanceMeters) {
+        // Find the corresponding point at this distance
         const targetDistancePixels = nextMarkerDistance / meterConversionFactor;
-
+        
+        // Find the two points that bracket our target distance
         let beforeIndex = 0;
         for (let i = 1; i < cumulativePathPoints.length; i++) {
             if (cumulativePathPoints[i].distance > targetDistancePixels) {
@@ -239,16 +254,19 @@ window.addEventListener("load", () => {
                 break;
             }
         }
-
+        
         const beforePoint = cumulativePathPoints[beforeIndex];
         const afterPoint = cumulativePathPoints[beforeIndex + 1];
-
+        
+        // Calculate the fraction of the way between these two points
         const segmentDistance = afterPoint.distance - beforePoint.distance;
         const fraction = (targetDistancePixels - beforePoint.distance) / segmentDistance;
-
+        
+        // Interpolate the position
         const lat = beforePoint.point[0] + fraction * (afterPoint.point[0] - beforePoint.point[0]);
         const lng = beforePoint.point[1] + fraction * (afterPoint.point[1] - beforePoint.point[1]);
-
+        
+        // Create a marker at this point
         const marker = L.circleMarker([lat, lng], {
             radius: 3,
             color: 'orange',
@@ -257,30 +275,48 @@ window.addEventListener("load", () => {
         }).addTo(map);
         marker.bindPopup(`AR Point: ${nextMarkerDistance.toFixed(1)}m`);
         pathLayers.push(marker);
-
+        
+        // Store the point for AR use
         arPoints.push({
             position: [lat, lng],
             distanceMeters: nextMarkerDistance.toFixed(1)
         });
-
+        
+        // Move to next meter mark
         nextMarkerDistance += 1.0;
     }
-
+    
+    // Convert map coordinates to real-world coordinates in meters
+    // Using the same meter conversion factor used in the dijkstra algorithm
     const mapToRealWorldMeters = (mapCoords) => {
+        // The meterConversionFactor is used in the dijkstra implementation (0.04254)
         const meterConversionFactor = 0.04254;
-        const mapY = mapCoords[0];
-        const mapX = mapCoords[1];
-        const originPoint = [0, 0];
+        
+        // Get leaflet map coordinates
+        const mapY = mapCoords[0]; // y in map space (latitude in leaflet)
+        const mapX = mapCoords[1]; // x in map space (longitude in leaflet)
+        
+        // Get the origin point (0,0) in your map
+        // This should be a reference to a known physical location in your space
+        const originPoint = [0, 0]; // Bottom-left corner of the map
+        
+        // Calculate distance from origin in map units
         const mapUnitsX = mapX - originPoint[1];
         const mapUnitsY = mapY - originPoint[0];
+        
+        // Convert to meters using the same conversion factor used in the Dijkstra algorithm
         const metersX = mapUnitsX * meterConversionFactor;
         const metersY = mapUnitsY * meterConversionFactor;
+        
         return {
             x: metersX.toFixed(2),
             y: metersY.toFixed(2),
+            // Relative to the origin point (0,0) of the map
+            // Positive x is right, positive y is up
         };
     };
-
+    
+    // Apply transformation to each point and store
     const arPointsWithRealCoordinates = arPoints.map(point => {
         const realWorldMeters = mapToRealWorldMeters(point.position);
         return {
@@ -289,41 +325,37 @@ window.addEventListener("load", () => {
             distanceAlongPath: point.distanceMeters
         };
     });
-
+    
+    // Store AR points for later use
     window.arNavigationPoints = arPointsWithRealCoordinates;
-
+    
+    // Log the points with their real-world coordinates in meters
     console.log("AR Navigation Points with Real Coordinates (meters):", arPointsWithRealCoordinates);
+        
+    // Log in a more readable format
     console.log("=== AR Navigation Points (Real-World Coordinates in meters) ===");
     arPointsWithRealCoordinates.forEach((point, index) => {
         console.log(`Point ${index + 1} (${point.distanceAlongPath}m along path): 
             X: ${point.realWorldMeters.x}m, Y: ${point.realWorldMeters.y}m from origin`);
     });
-
+    
+    // You might want to calculate and log the direction vectors between points
+    // This would be useful for orienting AR arrows
     console.log("=== Direction Vectors Between Points ===");
     for (let i = 0; i < arPointsWithRealCoordinates.length - 1; i++) {
         const current = arPointsWithRealCoordinates[i];
         const next = arPointsWithRealCoordinates[i + 1];
-
+        
         const dirX = next.realWorldMeters.x - current.realWorldMeters.x;
         const dirY = next.realWorldMeters.y - current.realWorldMeters.y;
-
+        
+        // Calculate direction angle in degrees (0° is east, 90° is north)
         const angleRad = Math.atan2(dirY, dirX);
         const angleDeg = (angleRad * 180 / Math.PI).toFixed(1);
-
+        
         console.log(`Direction ${i + 1} to ${i + 2}: ${angleDeg}° (${dirX.toFixed(2)}m, ${dirY.toFixed(2)}m)`);
-
-        // === ARROW IN AR SCENE ===
-        if (window.arScene && window.arScene.scene) {
-            const arrowLength = 0.3;
-            const dirVector = new THREE.Vector3(parseFloat(dirX), 0, parseFloat(dirY)).normalize();
-            const origin = new THREE.Vector3(parseFloat(current.realWorldMeters.x), 0, parseFloat(current.realWorldMeters.y));
-            const arrowHelper = new THREE.ArrowHelper(dirVector, origin, arrowLength, 0xff0000);
-            window.arScene.scene.add(arrowHelper);
-            console.log("Arrow added");
-        }
     }
 }
-
         } else {
             setTimeout(waitForGraph, 100);
         }
