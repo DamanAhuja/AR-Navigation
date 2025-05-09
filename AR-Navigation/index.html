@@ -137,6 +137,7 @@
           }
 
           await mindarThree.start();
+          window.arScene = mindarThree;
 
           renderer.setAnimationLoop(() => {
             renderer.render(scene, camera);
