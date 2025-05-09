@@ -319,6 +319,7 @@ window.addEventListener("load", () => {
             const origin = new THREE.Vector3(parseFloat(current.realWorldMeters.x), 0, parseFloat(current.realWorldMeters.y));
             const arrowHelper = new THREE.ArrowHelper(dirVector, origin, arrowLength, 0xff0000);
             window.arScene.scene.add(arrowHelper);
+            console.log("Arrow added");
         }
     }
 }
