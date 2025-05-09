@@ -146,106 +146,366 @@ window.addEventListener("load", () => {
                 pathLayers = [];
             }
 
-            // This function should be defined outside of drawPath
-// Add it to your main code, before drawPath is called
-function createARArrows(arPoints) {
-    // Check if we have access to the Three.js and MindAR libraries
-    if (!window.THREE || !window.mindarThree) {
-        console.error("Three.js or MindAR not available");
+            // Replace the createARArrows function with this improved version
+function createARArrows(navigationPoints) {
+    // Log that we're starting the AR creation process
+    console.log("Initializing AR navigation with", navigationPoints.length, "points");
+    
+    // Store the navigation points globally for AR system to access
+    window.arNavigationPoints = navigationPoints;
+    
+    // Initialize AR only if not already initialized
+    if (!window.arInitialized) {
+        initializeAR();
+    } else {
+        // If AR is already initialized, just update the navigation points
+        updateARNavigation(navigationPoints);
+    }
+}
+
+function initializeAR() {
+    // Check if AR is supported
+    if (!window.XR || !navigator.xr) {
+        console.error("WebXR not supported in this browser");
+        alert("AR is not supported in your browser");
         return;
     }
+    
+    console.log("Setting up WebXR AR session...");
+    
+    // Create an XR session for AR
+    navigator.xr.requestSession('immersive-ar', {
+        requiredFeatures: ['hit-test', 'anchors']
+    }).then(session => {
+        window.arSession = session;
+        
+        // Set up XR rendering
+        const canvas = document.createElement('canvas');
+        document.body.appendChild(canvas);
+        canvas.style.position = 'absolute';
+        canvas.style.top = '0';
+        canvas.style.left = '0';
+        canvas.style.zIndex = '1000';
+        
+        const gl = canvas.getContext('webgl', { xrCompatible: true });
+        session.updateRenderState({ baseLayer: new XRWebGLLayer(session, gl) });
+        
+        // Set up Three.js for rendering
+        const renderer = new THREE.WebGLRenderer({
+            canvas: canvas,
+            context: gl,
+            alpha: true
+        });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.xr.enabled = true;
+        
+        // Create AR scene
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera();
+        
+        // Add lights
+        const light = new THREE.DirectionalLight(0xffffff, 1);
+        light.position.set(0, 10, 0);
+        scene.add(light);
+        scene.add(new THREE.AmbientLight(0x404040));
+        
+        // Store references
+        window.arScene = scene;
+        window.arRenderer = renderer;
+        window.arCamera = camera;
+        
+        // Create arrow objects group
+        window.arArrowsGroup = new THREE.Group();
+        scene.add(window.arArrowsGroup);
+        
+        // Create reference coordinate system
+        window.arReferenceSpace = null;
+        
+        // Set up session start
+        session.requestReferenceSpace('local').then(referenceSpace => {
+            window.arReferenceSpace = referenceSpace;
+            
+            // Start rendering loop
+            renderer.setAnimationLoop((timestamp, frame) => {
+                if (!frame) return;
+                
+                // Update camera
+                const pose = frame.getViewerPose(referenceSpace);
+                if (pose) {
+                    camera.matrix.fromArray(pose.transform.matrix);
+                    camera.matrixWorldNeedsUpdate = true;
+                }
+                
+                // Render scene
+                renderer.render(scene, camera);
+            });
+            
+            // AR is now initialized
+            window.arInitialized = true;
+            console.log("WebXR AR session initialized");
+            
+            // If we have navigation points, create the arrows
+            if (window.arNavigationPoints) {
+                updateARNavigation(window.arNavigationPoints);
+            }
+        });
+        
+        // Handle session end
+        session.addEventListener('end', () => {
+            console.log("AR session ended");
+            window.arInitialized = false;
+        });
+    }).catch(error => {
+        console.error("Error starting AR session:", error);
+        alert("Failed to start AR: " + error.message);
+    });
+}
 
-    // Clear any existing AR arrows
-    if (window.arArrows) {
-        window.arArrows.forEach(arrow => {
-            if (arrow.parent) arrow.parent.remove(arrow);
+function updateARNavigation(navigationPoints) {
+    if (!window.arInitialized || !window.arScene || !window.arArrowsGroup) {
+        console.error("AR not initialized");
+        return;
+    }
+    
+    // Clear existing arrows
+    while (window.arArrowsGroup.children.length > 0) {
+        window.arArrowsGroup.remove(window.arArrowsGroup.children[0]);
+    }
+    
+    console.log("Creating", navigationPoints.length, "AR navigation arrows");
+    
+    // Origin reference - this should match your map's (0,0) in real-world space
+    // This might require calibration based on your specific location
+    const originAnchor = new THREE.Object3D();
+    window.arScene.add(originAnchor);
+    
+    // Set the origin anchor position using device's current GPS if available
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(position => {
+            window.arOriginGPS = {
+                latitude: position.coords.latitude,
+                longitude: position.coords.longitude
+            };
+            console.log("Origin GPS coordinates set:", window.arOriginGPS);
         });
     }
-    window.arArrows = [];
-
-    // Create a base material for arrows
-    const arrowMaterial = new THREE.MeshBasicMaterial({ 
-        color: 0x00ff00,
-        transparent: true,
-        opacity: 0.8
-    });
-
-    // Get the AR scene
-    const scene = window.mindarThree.scene;
     
-    // Create arrows for each point
-    arPoints.forEach((point, index) => {
+    // Create arrows for each navigation point
+    navigationPoints.forEach((point, index) => {
         // Create arrow geometry
-        const arrowLength = 0.3;
-        const arrowWidth = 0.1;
+        const arrowGroup = createArrow();
         
-        // Arrow body
-        const bodyGeometry = new THREE.BoxGeometry(arrowWidth, arrowWidth, arrowLength);
-        const body = new THREE.Mesh(bodyGeometry, arrowMaterial);
+        // Position the arrow in real-world space (coordinates in meters from origin)
+        arrowGroup.position.set(
+            parseFloat(point.realWorldMeters.x),
+            0.5, // Height above ground in meters
+            -parseFloat(point.realWorldMeters.y) // Negate Y for correct orientation in AR space
+        );
         
-        // Arrow head
-        const headGeometry = new THREE.ConeGeometry(arrowWidth * 1.5, arrowLength * 0.4, 8);
-        const head = new THREE.Mesh(headGeometry, arrowMaterial);
-        head.position.z = arrowLength / 2 + arrowLength * 0.2;
-        head.rotation.x = Math.PI / 2;
+        // Add distance label
+        const distanceLabel = createTextLabel(point.distanceAlongPath + "m");
+        distanceLabel.position.y = 0.3; // Position above arrow
+        arrowGroup.add(distanceLabel);
         
-        // Group body and head
-        const arrowGroup = new THREE.Group();
-        arrowGroup.add(body);
-        arrowGroup.add(head);
-        
-        // Position the arrow at the real-world coordinates
-        // Convert meter coordinates to AR world space
-        // We need to scale and offset based on your AR setup
-        // This conversion factor may need adjustment based on your specific AR environment
-        const arScale = 1.0; // Scale factor between real-world meters and AR units
-        arrowGroup.position.x = point.realWorldMeters.x * arScale;
-        arrowGroup.position.z = -point.realWorldMeters.y * arScale; // Negative because AR Z is typically away from camera
-        arrowGroup.position.y = 0; // Height above ground, adjust as needed
-        
-        // Rotate the arrow to point in the right direction
-        // If this is not the last point, orient towards the next point
-        if (index < arPoints.length - 1) {
-            const nextPoint = arPoints[index + 1];
-            const dx = nextPoint.realWorldMeters.x - point.realWorldMeters.x;
-            const dy = nextPoint.realWorldMeters.y - point.realWorldMeters.y;
+        // Calculate direction to next point if not the last point
+        if (index < navigationPoints.length - 1) {
+            const nextPoint = navigationPoints[index + 1];
+            const dx = parseFloat(nextPoint.realWorldMeters.x) - parseFloat(point.realWorldMeters.x);
+            const dy = parseFloat(nextPoint.realWorldMeters.y) - parseFloat(point.realWorldMeters.y);
             
-            // Calculate rotation angle around Y axis (horizontal plane)
+            // Calculate angle and rotate arrow to point in that direction
             const angle = Math.atan2(dx, dy);
             arrowGroup.rotation.y = angle;
         }
         
-        // Add text label with distance
-        const canvas = document.createElement('canvas');
-        const context = canvas.getContext('2d');
-        canvas.width = 128;
-        canvas.height = 64;
-        context.fillStyle = '#ffffff';
-        context.font = '24px Arial';
-        context.fillText(`${point.distanceAlongPath}m`, 10, 30);
+        // Add arrow to group
+        window.arArrowsGroup.add(arrowGroup);
         
-        const texture = new THREE.CanvasTexture(canvas);
-        const labelMaterial = new THREE.SpriteMaterial({ map: texture });
-        const label = new THREE.Sprite(labelMaterial);
-        label.scale.set(0.5, 0.25, 1);
-        label.position.y = 0.3; // Position above the arrow
-        
-        arrowGroup.add(label);
-        
-        // Add the arrow to the scene
-        scene.add(arrowGroup);
-        
-        // Store reference for later cleanup
-        window.arArrows.push(arrowGroup);
-        
-        // Add debug information
-        console.log(`Created AR arrow at point ${index + 1}: 
-            X: ${point.realWorldMeters.x}m, Y: ${point.realWorldMeters.y}m`);
+        console.log(`Created AR arrow ${index + 1} at position:`, 
+            arrowGroup.position.x, arrowGroup.position.y, arrowGroup.position.z);
     });
     
-    console.log(`Created ${window.arArrows.length} AR arrows in the scene`);
+    // Attach the arrows group to origin
+    originAnchor.add(window.arArrowsGroup);
+    
+    // Function to create an AR arrow
+    function createArrow() {
+        const arrowGroup = new THREE.Group();
+        
+        // Arrow body (cylinder)
+        const bodyGeometry = new THREE.CylinderGeometry(0.02, 0.02, 0.3, 8);
+        const bodyMaterial = new THREE.MeshStandardMaterial({ 
+            color: 0x00ff00,
+            emissive: 0x004400,
+            roughness: 0.3
+        });
+        const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+        body.position.y = 0.15;
+        arrowGroup.add(body);
+        
+        // Arrow head (cone)
+        const headGeometry = new THREE.ConeGeometry(0.05, 0.1, 8);
+        const headMaterial = new THREE.MeshStandardMaterial({ 
+            color: 0x00ff00,
+            emissive: 0x004400,
+            roughness: 0.3
+        });
+        const head = new THREE.Mesh(headGeometry, headMaterial);
+        head.position.y = 0.35;
+        arrowGroup.add(head);
+        
+        // Rotate to point forward by default
+        arrowGroup.rotation.x = Math.PI / 2;
+        
+        return arrowGroup;
+    }
+    
+    // Function to create text label
+    function createTextLabel(text) {
+        const canvas = document.createElement('canvas');
+        const context = canvas.getContext('2d');
+        canvas.width = 256;
+        canvas.height = 128;
+        
+        // Draw background
+        context.fillStyle = 'rgba(0, 0, 0, 0.7)';
+        context.fillRect(0, 0, canvas.width, canvas.height);
+        
+        // Draw text
+        context.fillStyle = 'white';
+        context.font = 'Bold 48px Arial';
+        context.textAlign = 'center';
+        context.textBaseline = 'middle';
+        context.fillText(text, canvas.width / 2, canvas.height / 2);
+        
+        // Create texture
+        const texture = new THREE.CanvasTexture(canvas);
+        const material = new THREE.SpriteMaterial({ map: texture });
+        const sprite = new THREE.Sprite(material);
+        sprite.scale.set(0.5, 0.25, 1);
+        
+        return sprite;
+    }
 }
 
+// Add button to activate AR navigation
+function addARButton() {
+    // Create AR button
+    const arButton = document.createElement('button');
+    arButton.textContent = 'Start AR Navigation';
+    arButton.style.position = 'fixed';
+    arButton.style.bottom = '20px';
+    arButton.style.left = '50%';
+    arButton.style.transform = 'translateX(-50%)';
+    arButton.style.padding = '12px 20px';
+    arButton.style.backgroundColor = '#4285F4';
+    arButton.style.color = 'white';
+    arButton.style.border = 'none';
+    arButton.style.borderRadius = '4px';
+    arButton.style.fontWeight = 'bold';
+    arButton.style.zIndex = '1000';
+    
+    // Add click handler
+    arButton.addEventListener('click', () => {
+        if (window.arNavigationPoints && window.arNavigationPoints.length > 0) {
+            if (!window.arInitialized) {
+                initializeAR();
+            }
+        } else {
+            alert('Please select a destination first');
+        }
+    });
+    
+    // Add to document
+    document.body.appendChild(arButton);
+}
+
+// Call this function after the page loads
+window.addEventListener('load', () => {
+    addARButton();
+});
+
+// Add calibration feature to align the virtual and real world
+function calibrateAROrigin() {
+    if (!window.arInitialized) {
+        console.error("AR not initialized");
+        return;
+    }
+    
+    // Create UI for calibration
+    const calibrationUI = document.createElement('div');
+    calibrationUI.style.position = 'fixed';
+    calibrationUI.style.top = '20px';
+    calibrationUI.style.left = '20px';
+    calibrationUI.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+    calibrationUI.style.color = 'white';
+    calibrationUI.style.padding = '15px';
+    calibrationUI.style.borderRadius = '5px';
+    calibrationUI.style.zIndex = '1001';
+    
+    calibrationUI.innerHTML = `
+        <h3>AR Calibration</h3>
+        <p>Stand at the entrance and align the virtual world:</p>
+        <div>
+            <button id="calibrate-set">Set Current Position as Origin</button>
+            <button id="calibrate-rotate">Rotate World</button>
+            <input type="range" id="calibrate-angle" min="-180" max="180" value="0">
+            <span id="angle-value">0°</span>
+        </div>
+        <button id="calibrate-done">Done</button>
+    `;
+    
+    document.body.appendChild(calibrationUI);
+    
+    // Set up event handlers
+    document.getElementById('calibrate-set').addEventListener('click', () => {
+        // Reset the origin to current position
+        if (window.arReferenceSpace) {
+            window.arReferenceSpace = window.arReferenceSpace.getOffsetReferenceSpace(
+                new XRRigidTransform({x: 0, y: 0, z: 0})
+            );
+            console.log("Origin reset to current position");
+        }
+    });
+    
+    document.getElementById('calibrate-angle').addEventListener('input', (e) => {
+        const angle = parseInt(e.target.value);
+        document.getElementById('angle-value').textContent = angle + '°';
+        
+        // Rotate the AR arrows group
+        if (window.arArrowsGroup) {
+            window.arArrowsGroup.rotation.y = angle * Math.PI / 180;
+        }
+    });
+    
+    document.getElementById('calibrate-done').addEventListener('click', () => {
+        document.body.removeChild(calibrationUI);
+    });
+}
+
+// Add calibration button
+function addCalibrationButton() {
+    const calibrateButton = document.createElement('button');
+    calibrateButton.textContent = 'Calibrate AR';
+    calibrateButton.style.position = 'fixed';
+    calibrateButton.style.top = '20px';
+    calibrateButton.style.right = '20px';
+    calibrateButton.style.padding = '8px 12px';
+    calibrateButton.style.backgroundColor = '#FF5722';
+    calibrateButton.style.color = 'white';
+    calibrateButton.style.border = 'none';
+    calibrateButton.style.borderRadius = '4px';
+    calibrateButton.style.zIndex = '1000';
+    
+    calibrateButton.addEventListener('click', calibrateAROrigin);
+    document.body.appendChild(calibrateButton);
+}
+
+// Initialize everything after page load
+window.addEventListener('load', () => {
+    addARButton();
+    addCalibrationButton();
+});
             function drawPath(path) {
     clearPath();
     
