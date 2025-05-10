@@ -118,6 +118,14 @@
           const { renderer, scene, camera } = mindarThree;
           const totalTargets = 2; // Adjust to your number of markers
           const anchors = [];
+const cube = new THREE.Mesh(
+  new THREE.BoxGeometry(0.2, 0.2, 0.2),
+  new THREE.MeshBasicMaterial({ color: 0x00ff00 })
+);
+cube.position.set(0, 0, -1); // 1 meter in front of the camera
+
+scene.add(cube); // <--- Important: use `scene` from mindarThree
+
 
           for (let i = 0; i < totalTargets; i++) {
             const anchor = mindarThree.addAnchor(i);
