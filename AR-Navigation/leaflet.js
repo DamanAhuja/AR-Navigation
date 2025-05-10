@@ -342,7 +342,7 @@ window.addEventListener("load", () => {
 
 if (window.north && typeof window.north.x === "number" && typeof window.north.y === "number") {
     // Compute real North vector (assuming (0,0) is the origin of your map)
-    const origin = { x: 225, y: 112.5 }; // or use a reference point if needed
+    const origin = { x: 112.5, y: 225 }; // or use a reference point if needed
     const northVector = {
         x: window.north.x - origin.x,
         //x: origin.x - window.north.x,
