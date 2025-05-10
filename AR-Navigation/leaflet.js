@@ -145,6 +145,16 @@ window.addEventListener("load", () => {
                 pathLayers.forEach(layer => map.removeLayer(layer));
                 pathLayers = [];
             }
+            const arrowGeometry = new THREE.ConeGeometry(0.1, 0.3, 8);
+const arrowMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+
+            function polarToWorldPosition(distance, angleDegrees) {
+  const angleRad = THREE.MathUtils.degToRad(angleDegrees);
+  const x = distance * Math.sin(angleRad);  // left/right
+  const z = distance * Math.cos(angleRad);  // forward
+  return new THREE.Vector3(x, 0, -z); // -z because AR camera looks in -Z
+}
+
 
             function drawPath(path) {
     clearPath();
@@ -341,42 +351,47 @@ window.addEventListener("load", () => {
     console.log("=== Direction Vectors Between Points (Relative to Real North) ===");
 
 if (window.north && typeof window.north.x === "number" && typeof window.north.y === "number") {
-    // Compute real North vector (assuming (0,0) is the origin of your map)
-    const origin = { x: 112.5, y: 225 }; // or use a reference point if needed
-    const northVector = {
-        x: window.north.x - origin.x,
-        //x: origin.x - window.north.x,
-        //y: window.north.y - origin.y
-        y: origin.y - window.north.y // Flip Y if SVG Y-axis increases downward
-    };
+        const origin = { x: 112.5, y: 225 };
+        const northVector = {
+            x: window.north.x - origin.x,
+            y: origin.y - window.north.y
+        };
 
-    // Normalize North vector
-    const northMag = Math.hypot(northVector.x, northVector.y);
-    const northUnit = {
-        x: northVector.x / northMag,
-        y: northVector.y / northMag
-    };
+        const northMag = Math.hypot(northVector.x, northVector.y);
+        const northUnit = {
+            x: northVector.x / northMag,
+            y: northVector.y / northMag
+        };
 
-    for (let i = 0; i < arPointsWithRealCoordinates.length - 1; i++) {
-        const current = arPointsWithRealCoordinates[i];
-        const next = arPointsWithRealCoordinates[i + 1];
+        for (let i = 0; i < arPointsWithRealCoordinates.length - 1; i++) {
+            const current = arPointsWithRealCoordinates[i];
+            const next = arPointsWithRealCoordinates[i + 1];
 
-        const dx = parseFloat(next.realWorldMeters.x) - parseFloat(current.realWorldMeters.x);
-        const dy = parseFloat(next.realWorldMeters.y) - parseFloat(current.realWorldMeters.y);
+            const dx = parseFloat(next.realWorldMeters.x) - parseFloat(current.realWorldMeters.x);
+            const dy = parseFloat(next.realWorldMeters.y) - parseFloat(current.realWorldMeters.y);
 
-        // Normalize movement vector
-        const mag = Math.hypot(dx, dy);
-        const dirUnit = { x: dx / mag, y: dy / mag };
+            const mag = Math.hypot(dx, dy);
+            const dirUnit = { x: dx / mag, y: dy / mag };
 
-        // Compute angle between direction and north vector
-        const dot = dirUnit.x * northUnit.x + dirUnit.y * northUnit.y;
-        const cross = dirUnit.x * northUnit.y - dirUnit.y * northUnit.x;
+            const dot = dirUnit.x * northUnit.x + dirUnit.y * northUnit.y;
+            const cross = dirUnit.x * northUnit.y - dirUnit.y * northUnit.x;
 
-        const angleRad = Math.atan2(cross, dot);
-        const angleDeg = (angleRad * 180 / Math.PI + 360) % 360;
+            const angleRad = Math.atan2(cross, dot);
+            const angleDeg = (angleRad * 180 / Math.PI + 360) % 360;
 
-        console.log(`Direction ${i + 1} to ${i + 2}: ${angleDeg.toFixed(1)}° relative to real North`);
-    }
+            // Calculate distance from origin
+            const distanceInMeters = Math.hypot(parseFloat(current.realWorldMeters.x), parseFloat(current.realWorldMeters.y));
+
+            // Convert polar coordinates to world position
+            const pos = polarToWorldPosition(distanceInMeters, angleDeg);
+
+            // Create and position arrow
+            const arrow = new THREE.Mesh(arrowGeometry, arrowMaterial);
+            arrow.position.copy(pos);
+            arrow.rotation.y = -THREE.MathUtils.degToRad(angleDeg);
+
+            // Add arrow to the scene
+            scene.add(arrow);
 } else {
     console.warn("window.north is not defined or malformed. Cannot compute direction relative to North.");
 }
