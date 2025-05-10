@@ -122,10 +122,14 @@
       // Create and add the cube to the scene
       const cube = new THREE.Mesh(
         new THREE.BoxGeometry(0.2, 0.2, 0.2),
-        new THREE.MeshBasicMaterial({ color: 0x00ff00 })
+        new THREE.MeshLambertMaterial({ color: 0x00ff00 }) // Change to Lambert material for better lighting
       );
       cube.position.set(0, 0, -1); // 1 meter in front of the camera
       scene.add(cube); // Add the cube to the scene immediately
+
+      // Add a basic light source to illuminate the cube
+      const light = new THREE.AmbientLight(0xFFFFFF, 1); // White light
+      scene.add(light);
 
       // Add anchors for marker detection
       for (let i = 0; i < totalTargets; i++) {
@@ -135,12 +139,10 @@
         // Optional: If you want to do something when a target is found or lost
         anchor.onTargetFound = () => {
           console.log(`Target ${i} found`);
-          // You can perform actions when a target is found here, but it won't affect the cube visibility
         };
 
         anchor.onTargetLost = () => {
           console.log(`Target ${i} lost`);
-          // You can perform actions when a target is lost here, but it won't affect the cube visibility
         };
       }
 
@@ -148,6 +150,7 @@
       await mindarThree.start();
       window.arScene = mindarThree;
 
+      // Render the scene continuously
       renderer.setAnimationLoop(() => {
         renderer.render(scene, camera);
       });
@@ -158,6 +161,7 @@
 
   start();
 </script>
+
 
   </body>
 </html>
