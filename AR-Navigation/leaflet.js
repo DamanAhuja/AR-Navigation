@@ -391,7 +391,7 @@ if (window.north && typeof window.north.x === "number" && typeof window.north.y 
             arrow.rotation.y = -THREE.MathUtils.degToRad(angleDeg);
 
             // Add arrow to the scene
-            scene.add(arrow);
+            window.arScene.scene.add(arrow);
         }
 } else {
     console.warn("window.north is not defined or malformed. Cannot compute direction relative to North.");
