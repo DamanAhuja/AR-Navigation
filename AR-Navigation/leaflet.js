@@ -345,7 +345,8 @@ if (window.north && typeof window.north.x === "number" && typeof window.north.y 
     const origin = { x: 0, y: 0 }; // or use a reference point if needed
     const northVector = {
         x: window.north.x - origin.x,
-        y: origin.y - window.north.y // Flip Y if SVG Y-axis increases downward
+        y: window.north.y - origin.y
+        //y: origin.y - window.north.y // Flip Y if SVG Y-axis increases downward
     };
 
     // Normalize North vector
