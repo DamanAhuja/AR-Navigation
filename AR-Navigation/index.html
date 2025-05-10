@@ -108,54 +108,56 @@
 
     <!-- AR and marker setup -->
     <script>
-      const start = async () => {
-        try {
-          window.mindarThree = new window.MINDAR.IMAGE.MindARThree({
-            container: document.querySelector("#ar-container"),
-            imageTargetSrc: "./test.mind" // Ensure this includes multiple image targets
-          });
+  const start = async () => {
+    try {
+      window.mindarThree = new window.MINDAR.IMAGE.MindARThree({
+        container: document.querySelector("#ar-container"),
+        imageTargetSrc: "./test.mind" // Ensure this includes multiple image targets
+      });
 
-          const { renderer, scene, camera } = mindarThree;
-          const totalTargets = 2; // Adjust to your number of markers
-          const anchors = [];
-const cube = new THREE.Mesh(
-  new THREE.BoxGeometry(0.2, 0.2, 0.2),
-  new THREE.MeshBasicMaterial({ color: 0x00ff00 })
-);
-cube.position.set(0, 0, -1); // 1 meter in front of the camera
+      const { renderer, scene, camera } = mindarThree;
+      const totalTargets = 2; // Adjust to your number of markers
+      const anchors = [];
 
-scene.add(cube); // <--- Important: use `scene` from mindarThree
+      // Create and add the cube to the scene
+      const cube = new THREE.Mesh(
+        new THREE.BoxGeometry(0.2, 0.2, 0.2),
+        new THREE.MeshBasicMaterial({ color: 0x00ff00 })
+      );
+      cube.position.set(0, 0, -1); // 1 meter in front of the camera
+      scene.add(cube); // Add the cube to the scene immediately
 
+      // Add anchors for marker detection
+      for (let i = 0; i < totalTargets; i++) {
+        const anchor = mindarThree.addAnchor(i);
+        anchors.push(anchor);
 
-          for (let i = 0; i < totalTargets; i++) {
-            const anchor = mindarThree.addAnchor(i);
-            anchors.push(anchor);
+        // Optional: If you want to do something when a target is found or lost
+        anchor.onTargetFound = () => {
+          console.log(`Target ${i} found`);
+          // You can perform actions when a target is found here, but it won't affect the cube visibility
+        };
 
-            anchor.onTargetFound = () => {
-              console.log(`Target ${i} found`);
-              const event = new CustomEvent("targetFound", {
-                detail: { targetIndex: i }
-              });
-              document.dispatchEvent(event);
-            };
+        anchor.onTargetLost = () => {
+          console.log(`Target ${i} lost`);
+          // You can perform actions when a target is lost here, but it won't affect the cube visibility
+        };
+      }
 
-            anchor.onTargetLost = () => {
-              console.log(`Target ${i} lost`);
-            };
-          }
+      // Start MindAR and render the scene
+      await mindarThree.start();
+      window.arScene = mindarThree;
 
-          await mindarThree.start();
-          window.arScene = mindarThree;
+      renderer.setAnimationLoop(() => {
+        renderer.render(scene, camera);
+      });
+    } catch (error) {
+      console.error("Error starting MindAR:", error);
+    }
+  };
 
-          renderer.setAnimationLoop(() => {
-            renderer.render(scene, camera);
-          });
-        } catch (error) {
-          console.error("Error starting MindAR:", error);
-        }
-      };
+  start();
+</script>
 
-      start();
-    </script>
   </body>
 </html>
