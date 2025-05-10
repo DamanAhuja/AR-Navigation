@@ -342,12 +342,12 @@ window.addEventListener("load", () => {
 
 if (window.north && typeof window.north.x === "number" && typeof window.north.y === "number") {
     // Compute real North vector (assuming (0,0) is the origin of your map)
-    const origin = { x: 0, y: 0 }; // or use a reference point if needed
+    const origin = { x: 148.5, y: 105 }; // or use a reference point if needed
     const northVector = {
-        //x: window.north.x - origin.x,
-        x: origin.x - window.north.x,
-        y: window.north.y - origin.y
-        //y: origin.y - window.north.y // Flip Y if SVG Y-axis increases downward
+        x: window.north.x - origin.x,
+        //x: origin.x - window.north.x,
+        //y: window.north.y - origin.y
+        y: origin.y - window.north.y // Flip Y if SVG Y-axis increases downward
     };
 
     // Normalize North vector
