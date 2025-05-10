@@ -338,10 +338,50 @@ window.addEventListener("load", () => {
         console.log(`Point ${index + 1} (${point.distanceAlongPath}m along path): 
             X: ${point.realWorldMeters.x}m, Y: ${point.realWorldMeters.y}m from origin`);
     });
-    
+    console.log("=== Direction Vectors Between Points (Relative to Real North) ===");
+
+if (window.north && typeof window.north.x === "number" && typeof window.north.y === "number") {
+    // Compute real North vector (assuming (0,0) is the origin of your map)
+    const origin = { x: 0, y: 0 }; // or use a reference point if needed
+    const northVector = {
+        x: window.north.x - origin.x,
+        y: origin.y - window.north.y // Flip Y if SVG Y-axis increases downward
+    };
+
+    // Normalize North vector
+    const northMag = Math.hypot(northVector.x, northVector.y);
+    const northUnit = {
+        x: northVector.x / northMag,
+        y: northVector.y / northMag
+    };
+
+    for (let i = 0; i < arPointsWithRealCoordinates.length - 1; i++) {
+        const current = arPointsWithRealCoordinates[i];
+        const next = arPointsWithRealCoordinates[i + 1];
+
+        const dx = parseFloat(next.realWorldMeters.x) - parseFloat(current.realWorldMeters.x);
+        const dy = parseFloat(next.realWorldMeters.y) - parseFloat(current.realWorldMeters.y);
+
+        // Normalize movement vector
+        const mag = Math.hypot(dx, dy);
+        const dirUnit = { x: dx / mag, y: dy / mag };
+
+        // Compute angle between direction and north vector
+        const dot = dirUnit.x * northUnit.x + dirUnit.y * northUnit.y;
+        const cross = dirUnit.x * northUnit.y - dirUnit.y * northUnit.x;
+
+        const angleRad = Math.atan2(cross, dot);
+        const angleDeg = (angleRad * 180 / Math.PI + 360) % 360;
+
+        console.log(`Direction ${i + 1} to ${i + 2}: ${angleDeg.toFixed(1)}° relative to real North`);
+    }
+} else {
+    console.warn("window.north is not defined or malformed. Cannot compute direction relative to North.");
+}
+
     // You might want to calculate and log the direction vectors between points
     // This would be useful for orienting AR arrows
-    console.log("=== Direction Vectors Between Points ===");
+    /*console.log("=== Direction Vectors Between Points ===");
     for (let i = 0; i < arPointsWithRealCoordinates.length - 1; i++) {
         const current = arPointsWithRealCoordinates[i];
         const next = arPointsWithRealCoordinates[i + 1];
@@ -354,7 +394,7 @@ window.addEventListener("load", () => {
         const angleDeg = (angleRad * 180 / Math.PI).toFixed(1);
         
         console.log(`Direction ${i + 1} to ${i + 2}: ${angleDeg}° (${dirX.toFixed(2)}m, ${dirY.toFixed(2)}m)`);
-    }
+    }*/
 }
         } else {
             setTimeout(waitForGraph, 100);
