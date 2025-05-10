@@ -392,6 +392,7 @@ if (window.north && typeof window.north.x === "number" && typeof window.north.y 
 
             // Add arrow to the scene
             scene.add(arrow);
+        }
 } else {
     console.warn("window.north is not defined or malformed. Cannot compute direction relative to North.");
 }
