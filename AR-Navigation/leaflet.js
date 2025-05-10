@@ -45,6 +45,12 @@ window.addEventListener("load", () => {
                     graph[to.id].push({ node: from.id, weight });
                 }
             });
+            const cube = new THREE.Mesh(
+  new THREE.BoxGeometry(0.1, 0.1, 0.1),
+  new THREE.MeshBasicMaterial({ color: 0xff0000 })
+);
+cube.position.set(0, 0, -1);
+window.arScene.scene.add(cube);
 
             // Render nodes
             nodes.forEach(node => {
