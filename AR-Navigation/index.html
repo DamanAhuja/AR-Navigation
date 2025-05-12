@@ -15,7 +15,7 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
-    <!-- Choices.js CDN -->
+    <!-- Choices.js -->
     <script src="https://cdn.jsdelivr.net/npm/choices.js/public/assets/scripts/choices.min.js"></script>
 
     <style>
@@ -44,7 +44,6 @@
         border-radius: 20px;
         pointer-events: auto;
         box-shadow: 0 0 10px rgba(0, 0, 0, 0.25);
-
         display: flex;
         align-items: center;
         justify-content: center;
@@ -100,39 +99,46 @@
 
       <div id="map"></div>
       <object id="svgObject" type="image/svg+xml" data="RDSC.svg"></object>
+
+      <!-- A-Frame with MindAR -->
+      <a-scene
+        mindar-image="imageTargetSrc: ./test.mind;"
+        embedded
+        color-space="sRGB"
+        renderer="colorManagement: true, physicallyCorrectLights"
+        vr-mode-ui="enabled: false"
+        device-orientation-permission-ui="enabled: true">
+
+        <!-- Camera -->
+        <a-camera position="0 0 0" look-controls="enabled: false" wasd-controls="enabled: false"
+          mindar-camera></a-camera>
+
+        <!-- Cube that appears on target -->
+        <a-entity mindar-image-target="targetIndex: 0">
+          <a-box position="0 0.1 0" material="color: #00FF00" depth="0.2" height="0.2" width="0.2"></a-box>
+        </a-entity>
+      </a-scene>
     </div>
 
-    <!-- External scripts -->
+    <!-- Scripts -->
     <script src="svg.js"></script>
     <script src="leaflet.js"></script>
     <script src="MarkerHandler.js"></script>
     <script src="choices.js"></script>
 
-    <!-- A-Frame with MindAR integration -->
-    <a-scene embedded arjs="sourceType: webcam; debugUIEnabled: false; trackingMethod: best;">
-      <!-- AR Container -->
-      <a-entity mindar="imageTargetSrc: ./test.mind; trackerType: image;"></a-entity>
-
-      <!-- The 3D Object (Cube) -->
-      <a-box position="0 0.5 -1" color="#00FF00" width="0.2" height="0.2" depth="0.2"></a-box>
-    </a-scene>
-
     <script>
-      // Initialization and setup for AR and Marker Handling
-      const startAR = async () => {
-        try {
-          const mindARScene = new window.MINDAR.AFRAME.MindARScene({
-            src: './test.mind',
-            trackerType: 'image'
-          });
+      function routeToDestination() {
+        const dropdown = document.getElementById('destinationDropdown');
+        const selected = dropdown.value;
+        alert("Routing to: " + selected);
+        // Add your routing logic here
+      }
 
-          await mindARScene.start();
-        } catch (error) {
-          console.error("MindAR initialization error:", error);
-        }
-      };
-
-      startAR();
+      // Optional: initialize Choices.js
+      new Choices('#destinationDropdown', {
+        searchEnabled: false,
+        itemSelectText: '',
+      });
     </script>
   </body>
 </html>
