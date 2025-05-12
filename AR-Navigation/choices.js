@@ -8,30 +8,29 @@ document.addEventListener("DOMContentLoaded", () => {
     return;
   }
   
+  // Ensure cleanup of any existing Choices instances
+  if (window.existingChoices) {
+    window.existingChoices.destroy();
+  }
+  
   // Function to populate dropdown from extractedNodes
   function populateDropdownFromExtractedNodes() {
-    // Check if extractedNodes exists and is an array
+    // Clear any existing options
+    dropdown.innerHTML = '';
+    
+    // Verify extractedNodes
     if (!window.extractedNodes || !Array.isArray(window.extractedNodes)) {
       console.error("extractedNodes is not available or not an array");
       return null;
     }
     
-    // Add options from extractedNodes
+    // Prepare destinations
     const destinations = window.extractedNodes.map(node => node.id);
-    
-    // Destroy existing Choices instance if it exists
-    if (dropdown.choicesInstance) {
-      dropdown.choicesInstance.destroy();
-    }
-    
-    // Clear existing options
-    dropdown.innerHTML = '';
     
     // Add placeholder option
     const placeholderOption = document.createElement('option');
-    placeholderOption.value = "";
-    placeholderOption.text = "Select destination...";
-    placeholderOption.disabled = true;
+    placeholderOption.value = '';
+    placeholderOption.text = 'Select destination...';
     placeholderOption.selected = true;
     dropdown.appendChild(placeholderOption);
     
@@ -43,62 +42,51 @@ document.addEventListener("DOMContentLoaded", () => {
       dropdown.appendChild(option);
     });
     
-    // Initialize Choices.js with specific configuration
+    // Initialize Choices.js with aggressive reset configuration
     const choicesInstance = new Choices(dropdown, {
       searchEnabled: true,
       searchPlaceholderValue: 'Search destinations...',
-      itemSelectText: '',
       placeholder: true,
       placeholderValue: 'Select destination...',
       
-      // Configurations to control dropdown behavior
+      // Key configurations
       searchFloor: 1,  // Require at least 1 character to show suggestions
       searchResultLimit: 10,  // Limit number of suggestions
-      shouldSort: false,
-      maxItemCount: 1,  // Ensure only one item can be selected
+      
+      // Strict selection control
       removeItems: false,
+      shouldSort: false,
+      maxItemCount: 1,
+      
+      // Ensure no preselected items
       renderSelectedChoices: 'always'
     });
     
-    // Store reference to the Choices instance on the dropdown
-    dropdown.choicesInstance = choicesInstance;
-    
-    // Add event listener to reset selection when needed
-    dropdown.addEventListener('change', function(event) {
-      // Ensure the placeholder is hidden when a selection is made
-      const choicesInput = this.closest('.choices').querySelector('.choices__input');
-      if (choicesInput) {
-        choicesInput.setAttribute('placeholder', 'Select destination...');
-      }
-    });
+    // Store global reference to allow manual reset
+    window.existingChoices = choicesInstance;
     
     return choicesInstance;
   }
   
-  // Retry mechanism to wait for extractedNodes
+  // Retry mechanism for extractedNodes
   let retryCount = 0;
   const maxRetries = 30;
-  const checkInterval = 500; // Check every 500ms
+  const checkInterval = 500;
   
   function checkForExtractedNodes() {
     console.log(`[Choices] Checking for extractedNodes (attempt ${retryCount + 1}/${maxRetries})`);
     
-    // Check if extractedNodes exists and has data
     if (window.extractedNodes && Array.isArray(window.extractedNodes) && window.extractedNodes.length > 0) {
       console.log(`[Choices] Found ${window.extractedNodes.length} nodes, updating dropdown`);
       populateDropdownFromExtractedNodes();
       return;
     }
     
-    // If not found, retry with limit
     retryCount++;
     if (retryCount < maxRetries) {
       setTimeout(checkForExtractedNodes, checkInterval);
     } else {
       console.error("[Choices] Failed to load extractedNodes after maximum retries");
-      
-      // Optional: Add error handling or fallback
-      dropdown.innerHTML = '<option value="">No destinations available</option>';
     }
   }
   
@@ -110,12 +98,14 @@ document.addEventListener("DOMContentLoaded", () => {
 window.routeToDestination = function() {
   const dropdown = document.getElementById('destinationDropdown');
   
-  // Ensure Choices instance exists and has a value
-  if (dropdown && dropdown.choicesInstance && dropdown.value) {
-    // Reset the dropdown to placeholder state
-    dropdown.choicesInstance.setChoiceByValue('');
+  if (dropdown && dropdown.value) {
+    // Reset choices instance if exists
+    if (window.existingChoices) {
+      window.existingChoices.setChoiceByValue('');
+      dropdown.selectedIndex = 0;
+    }
     
-    // Check if goTo function exists before calling
+    // Call routing function
     if (typeof window.goTo === 'function') {
       window.goTo(dropdown.value);
     } else {
