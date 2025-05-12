@@ -121,12 +121,9 @@
     Marker detected: <span id="markerIdText">N/A</span>
   </div>
 
-  <!-- AR Scene -->
-  <a-scene arjs="sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix;" vr-mode-ui="enabled: false">
-   
-
-    <!-- Camera entity -->
-    <a-entity camera look-controls position="0 0 0"></a-entity>
+ <a-scene embedded arjs="sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix;" vr-mode-ui="enabled: false">
+    <!-- Camera -->
+    <a-entity camera="active: true" look-controls wasd-controls></a-entity>
 
     
     <!-- Markers from the other script -->
