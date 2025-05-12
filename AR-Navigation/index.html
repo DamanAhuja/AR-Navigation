@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -70,16 +71,16 @@
       display: block !important;
       visibility: visible !important;
     }
-    .container #svgObject {
+    #svgObject {
       position: absolute;
       top: 0;
       left: -9999px;
       width: 600px;
       height: 900px;
       border-left: 1px solid #ccc;
-      opacity: 0;
-      visibility: hidden;
+      opacity: 1;
       z-index: 5;
+      visibility: hidden;
     }
     .a-scene {
       position: fixed;
@@ -106,15 +107,11 @@
     <div id="map"></div>
     <object id="svgObject" type="image/svg+xml" data="RDSC.svg"></object>
   </div>
-  <a-scene embedded arjs="sourceType: webcam; trackingMethod: markerless; debugUIEnabled: true" vr-mode-ui="enabled: false">
+  <a-scene embedded arjs="sourceType: webcam; debugUIEnabled: false; trackingMethod: best" vr-mode-ui="enabled: false">
     <a-camera position="0 1.6 0" camera="fov: 80; near: 0.1; far: 100">
-      <a-box position="0 0 -0.05" material="color: blue; opacity: 1" scale="0.3 0.3 0.3" visible="true" animation="property: rotation; to: 0 360 0; loop: true; dur: 2000"></a-box>
-      <a-sphere position="0.1 0 -0.05" radius="0.15" material="color: red; opacity: 1" visible="true"></a-sphere>
-      <a-text value="Test" color="white" position="0 0 -0.05" align="center"></a-text>
-      <a-box position="0 0 -0.05" scale="0.3 0.3 0.3" wireframe="true" visible="true"></a-box>
+      <a-box position="0 -0.5 -0.3" material="color: blue; opacity: 1" scale="0.3 0.3 0.3" visible="true"></a-box>
+      <a-sphere position="0.1 -0.5 -0.3" radius="0.15" material="color: red; opacity: 1" visible="true"></a-sphere>
     </a-camera>
-    <a-box position="0 0 -0.5" material="color: green; opacity: 1" scale="0.3 0.3 0.3" visible="true"></a-box>
-    <a-plane position="0 0 -1" rotation="-90 0 0" width="4" height="4" material="color: gray; opacity: 0.5"></a-plane>
     <a-entity light="type: ambient; intensity: 0.5"></a-entity>
     <a-entity light="type: directional; intensity: 0.5" position="0 1 1"></a-entity>
   </a-scene>
@@ -123,12 +120,6 @@
   <script src="MarkerHandler.js"></script>
   <script>
     document.addEventListener('DOMContentLoaded', () => {
-      const svgObject = document.getElementById('svgObject');
-      const observer = new MutationObserver(() => {
-        console.log('svgObject style changed:', svgObject.style.display, svgObject.style.visibility);
-      });
-      observer.observe(svgObject, { attributes: true, attributeFilter: ['style'] });
-
       const sceneEl = document.querySelector('a-scene');
       if (sceneEl) {
         sceneEl.addEventListener('loaded', () => {
@@ -139,20 +130,12 @@
           const cube = sceneEl.querySelector('a-box');
           const sphere = sceneEl.querySelector('a-sphere');
           console.log('Camera position:', camera.getAttribute('position'));
-          console.log('Camera FOV:', camera.getAttribute('camera').fov);
-          console.log('Camera near:', camera.getAttribute('camera').near);
-          console.log('Camera far:', camera.getAttribute('camera').far);
           console.log('Cube position:', cube.getAttribute('position'));
-          console.log('Cube visible:', cube.getAttribute('visible'));
           console.log('Sphere position:', sphere.getAttribute('position'));
-          console.log('Sphere visible:', sphere.getAttribute('visible'));
         });
         sceneEl.addEventListener('camera-init', () => {
           console.log('AR session initialized (camera ready)');
           sceneEl.renderer.setSize(window.innerWidth, window.innerHeight);
-        });
-        sceneEl.addEventListener('camera-error', (err) => {
-          console.error('AR camera error:', err.detail);
         });
         setTimeout(() => {
           if (!sceneEl.hasLoaded) console.warn('A-Frame scene not loaded after 5s');
@@ -173,4 +156,3 @@
   </script>
 </body>
 </html>
-
