@@ -9,7 +9,6 @@
 
     <!-- AR.js -->
     <script src="https://jeromeetienne.github.io/AR.js/aframe/build/aframe-ar.js"></script>
-    <!--<script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js/aframe/build/aframe-ar.js"></script>-->
 
     <!-- Leaflet -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
@@ -35,12 +34,11 @@
       #routing-ui {
         position: absolute;
         top: 10px;
-        left: 10px;
-        right: 10px;
+        left: 50%;
+        transform: translateX(-50%);
         z-index: 999;
         background: white;
-        padding: 20px;
-        height: 120px;
+        padding: 15px;
         border-radius: 20px;
         pointer-events: auto;
         box-shadow: 0 0 10px rgba(0, 0, 0, 0.25);
@@ -48,14 +46,17 @@
         align-items: center;
         justify-content: center;
         gap: 15px;
+        max-width: 90%;
+        width: 500px;
       }
 
       #destinationDropdown {
         width: 300px;
+        max-width: 100%;
       }
 
       #routing-ui button {
-        padding: 12px 20px;
+        padding: 10px 15px;
         font-size: 16px;
         background-color: #1976d2;
         color: white;
@@ -71,10 +72,10 @@
 
       #map {
         position: absolute;
-        bottom: 150px;
-        left: 50px;
-        width: 299px;
-        height: 585px;
+        bottom: 20px;
+        left: 20px;
+        width: 250px;
+        height: 250px;
         z-index: 10;
         border: 2px solid #ccc;
         box-shadow: 0 0 8px rgba(0, 0, 0, 0.2);
@@ -100,11 +101,8 @@
       <div id="map"></div>
       <object id="svgObject" type="image/svg+xml" data="RDSC.svg"></object>
 
-      <!-- A-Frame with AR.js -->
-      <!--<a-scene embedded arjs="sourceType: webcam; debugUIEnabled: false;">-->
       <a-scene embedded arjs>
-
-       <!-- Camera -->
+        <!-- Camera -->
         <a-camera position="0 0 0" look-controls="enabled: false" wasd-controls="enabled: false"></a-camera>
 
         <!-- Marker with 3D model -->
@@ -113,17 +111,12 @@
         </a-marker>
 
         <!-- Marker for other objects -->
-        <!-- You can add more markers here -->
         <a-marker preset="kanji">
           <a-sphere position="0 0.1 0" radius="0.2" material="color: red"></a-sphere>
         </a-marker>
        
-
-  <!-- Floating Cube without marker -->
-  <a-box position="0 0 -2" color="blue" depth="1" height="1" width="1"></a-box>
-
-        <!-- Optional background -->
-        <!--<a-entity geometry="primitive: plane; width: 1; height: 1" material="color: gray" position="0 0 -1"></a-entity>-->
+        <!-- Floating Cube without marker -->
+        <a-box position="0 0 -2" color="blue" depth="1" height="1" width="1"></a-box>
       </a-scene>
     </div>
 
@@ -132,13 +125,5 @@
     <script src="leaflet.js"></script>
     <script src="MarkerHandler.js"></script>
     <script src="choices.js"></script>
-
-    <script>
-      // Example function to route to a destination (you can modify this as needed)
-      /*function routeToDestination() {
-        alert('Routing to selected destination!');
-      }*/
-    </script>
-
   </body>
 </html>
