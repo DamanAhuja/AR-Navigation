@@ -5,33 +5,23 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>AR + Map + Hidden SVG + Multiple Markers</title>
   <script>
-  // Prevent webvr-polyfill from trying to fetch dpdb.json
-  window.DeviceParamsDB = function() {
-    this.getDeviceParams = function() { return null; };
-    this.fetchDeviceParams_ = function() {};
-  };
-</script>
-
+    window.DeviceParamsDB = function() {
+      this.getDeviceParams = function() { return null; };
+      this.fetchDeviceParams_ = function() {};
+    };
+  </script>
   <script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
-<!-- include ar.js for A-Frame -->
-<script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js@3.3.2/aframe/build/aframe-ar.min.js"></script>
-  
-  <!-- Leaflet -->
+  <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js@3.3.2/aframe/build/aframe-ar.min.js"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
-
-   <!-- Choices.js -->
-    <script src="https://cdn.jsdelivr.net/npm/choices.js/public/assets/scripts/choices.min.js"></script>
-  
+  <script src="https://cdn.jsdelivr.net/npm/choices.js/public/assets/scripts/choices.min.js"></script>
   <script src="choices.js"></script>
-
   <style>
     body {
       margin: 0;
       overflow: hidden;
       position: relative;
     }
-
     #routing-ui {
       position: fixed;
       top: 10px;
@@ -49,11 +39,9 @@
       margin: 0 auto;
       box-shadow: 0 0 10px rgba(0, 0, 0, 0.25);
     }
-
     #destinationDropdown {
       width: 300px;
     }
-
     #routing-ui button {
       padding: 8px 15px;
       font-size: 16px;
@@ -64,11 +52,9 @@
       cursor: pointer;
       transition: background-color 0.2s;
     }
-
     #routing-ui button:hover {
       background-color: #1259a6;
     }
-
     #map {
       position: fixed;
       bottom: 10px;
@@ -81,8 +67,9 @@
       border-radius: 5px;
       box-shadow: 0 0 10px rgba(0,0,0,0.5);
       z-index: 999;
+      display: block !important;
+      visibility: visible !important;
     }
-
     #svgObject {
       width: 600px;
       height: 900px;
@@ -91,88 +78,67 @@
       z-index: 5;
       visibility: hidden;
     }
-
     .a-scene {
       position: fixed;
       top: 0;
       left: 0;
       width: 100vw;
       height: 100vh;
-      z-index: 1;
+      z-index: 0;
     }
-
     .container {
       width: 100%;
       height: 100%;
       position: relative;
+      z-index: 998;
     }
-
-    body.ar-mode #svgObject {
-      display: none;
-    }
-
-   
   </style>
 </head>
 <body>
- 
-<div id="routing-ui">
-        <select id="destinationDropdown" class="choices"></select>
-        <button onclick="routeToDestination()">Go</button>
-         </div>
-     
-
+  <div id="routing-ui">
+    <select id="destinationDropdown" class="choices"></select>
+    <button onclick="routeToDestination()">Go</button>
+  </div>
   <div class="container">
     <div id="map"></div>
     <object id="svgObject" type="image/svg+xml" data="RDSC.svg"></object>
   </div>
-
-  
-
- <a-scene embedded arjs="sourceType: webcam; debugUIEnabled: true; trackingMethod: best" vr-mode-ui="enabled: false">
-  <!-- Camera entity for world-space rendering -->
-  <a-camera position="0 1.6 0"></a-camera>
-  <!-- Debug entity to confirm rendering -->
-  <a-box position="0 0.5 -1" material="color: blue" depth="0.1" height="0.1" width="0.1"></a-box>
-</a-scene>
-
-  <!-- Scripts -->
+  <a-scene embedded arjs="sourceType: webcam; debugUIEnabled: true; trackingMethod: best" vr-mode-ui="enabled: false">
+    <a-camera position="0 1.6 0" camera="fov: 80"></a-camera>
+    <a-box position="0 0.5 -0.5" material="color: blue" scale="0.2 0.2 0.2"></a-box>
+    <a-sphere position="0 0.3 -0.3" radius="0.1" material="color: red"></a-sphere>
+  </a-scene>
   <script src="svg.js"></script>
   <script src="leaflet.js"></script>
   <script src="MarkerHandler.js"></script>
-
   <script>
-  
     document.addEventListener('DOMContentLoaded', () => {
       const sceneEl = document.querySelector('a-scene');
-
       if (sceneEl) {
-        sceneEl.addEventListener('camera-init', function () {
-          console.log('AR session initialized (camera ready).');
+        sceneEl.addEventListener('loaded', () => {
+          console.log('A-Frame scene loaded');
+          sceneEl.renderer.setSize(window.innerWidth, window.innerHeight);
+          sceneEl.renderer.domElement.style.display = 'block';
         });
+        sceneEl.addEventListener('camera-init', () => {
+          console.log('AR session initialized (camera ready)');
+          sceneEl.renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+        setTimeout(() => {
+          if (!sceneEl.hasLoaded) console.warn('A-Frame scene not loaded after 5s');
+        }, 5000);
       }
-
-      /*if (!window._leafletInitialized) {
-        window.addEventListener('load', () => {
-          const map = L.map('map').setView([51.505, -0.09], 13);
-
-          L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-          }).addTo(map);
-
-          L.marker([51.5, -0.09]).addTo(map).bindPopup('A sample marker');
-
-          setTimeout(() => {
-            map.invalidateSize();
-          }, 1000);
-
-          window.addEventListener('resize', () => {
-            setTimeout(() => map.invalidateSize(), 200);
-          });
-
-          window._leafletInitialized = true;
-        });
-      }*/
+      const mapDiv = document.getElementById('map');
+      if (!mapDiv) {
+        console.error('Map div not found');
+      } else {
+        console.log('Map div found');
+      }
+      window.addEventListener('resize', () => {
+        if (sceneEl) {
+          sceneEl.renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+      });
     });
   </script>
 </body>
