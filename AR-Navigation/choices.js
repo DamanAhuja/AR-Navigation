@@ -8,131 +8,79 @@ document.addEventListener("DOMContentLoaded", () => {
     return;
   }
   
-  // Ensure complete cleanup
-  if (window.existingChoices) {
-    try {
-      window.existingChoices.destroy();
-    } catch(e) {}
-  }
-  
   // Function to populate dropdown from extractedNodes
   function populateDropdownFromExtractedNodes() {
     // Clear any existing options
     dropdown.innerHTML = '';
     
-    // Verify extractedNodes
+    // Add placeholder option
+    const placeholderOption = document.createElement('option');
+    placeholderOption.value = "";
+    placeholderOption.text = "Select destination...";
+    placeholderOption.disabled = true;
+    placeholderOption.selected = true;
+    dropdown.appendChild(placeholderOption);
+    
+    // Check if extractedNodes exists and is an array
     if (!window.extractedNodes || !Array.isArray(window.extractedNodes)) {
       console.error("extractedNodes is not available or not an array");
       return null;
     }
     
-    // Prepare destinations
+    // Add options from extractedNodes
     const destinations = window.extractedNodes.map(node => node.id);
     
-    // Initialize Choices.js with full configuration
-    const choicesInstance = new Choices(dropdown, {
-      choices: [
-        {
-          value: '',
-          label: 'Select destination...',
-          selected: true,
-          disabled: true
-        },
-        ...destinations.map(dest => ({
-          value: dest,
-          label: dest,
-          selected: false,
-          disabled: false
-        }))
-      ],
+    // Initialize Choices.js with specific configuration
+    return new Choices(dropdown, {
       searchEnabled: true,
-      searchChoices: true,
       searchPlaceholderValue: 'Search destinations...',
+      itemSelectText: 'Select',
       placeholder: true,
       placeholderValue: 'Select destination...',
       
-      // Search and selection configurations
-      searchFloor: 1,  // Show suggestions after 1 character
-      searchResultLimit: 10,  // Limit suggestions
+      // Key configurations for the behavior you want
+      searchFloor: 1,  // Require at least 1 character to show suggestions
+      searchResultLimit: 10,  // Limit number of suggestions
+      choices: destinations.map(dest => ({
+        value: dest,
+        label: dest,
+        selected: false,
+        disabled: false
+      })),
+      
+      // Additional configurations
       shouldSort: false,
-      maxItemCount: 1,  // Only one selection allowed
+      renderChoiceLimit: 0,  // Initially show no choices
+      maxItemCount: 1,
       removeItems: false,
-      
-      // Rendering preferences
-      renderSelectedChoices: 'always',
-      
-      // UI Customization
-      itemSelectText: '',
-      classNames: {
-        containerOuter: 'choices',
-        containerInner: 'choices__inner',
-        input: 'choices__input',
-        inputCloned: 'choices__input--cloned',
-        list: 'choices__list',
-        listItems: 'choices__list--multiple',
-        listSingle: 'choices__list--single',
-        listDropdown: 'choices__list--dropdown',
-        item: 'choices__item',
-        itemSelectable: 'choices__item--selectable',
-        itemDisabled: 'choices__item--disabled',
-        itemChoice: 'choices__item--choice',
-        placeholder: 'choices__placeholder',
-        group: 'choices__group',
-        groupHeading: 'choices__heading',
-        button: 'choices__button',
-        activeState: 'is-active',
-        focusState: 'is-focused',
-        openState: 'is-open',
-        disabledState: 'is-disabled',
-        highlightedState: 'is-highlighted',
-        selectedState: 'is-selected',
-        flippedState: 'is-flipped',
-        loadingState: 'is-loading',
-        noResults: 'has-no-results',
-        noChoices: 'has-no-choices'
-      }
+      renderSelectedChoices: 'always'
     });
-    
-    // Store global reference
-    window.existingChoices = choicesInstance;
-    
-    // Add custom reset method
-    window.resetDropdown = () => {
-      if (window.existingChoices) {
-        // Reset to placeholder
-        window.existingChoices.setChoiceByValue('');
-        
-        // Ensure input is cleared
-        const choicesInput = dropdown.closest('.choices').querySelector('.choices__input');
-        if (choicesInput) {
-          choicesInput.value = '';
-          choicesInput.setAttribute('placeholder', 'Select destination...');
-        }
-      }
-    };
-    
-    return choicesInstance;
   }
   
-  // Retry mechanism for extractedNodes
+  // Retry mechanism to wait for extractedNodes
   let retryCount = 0;
   const maxRetries = 30;
-  const checkInterval = 500;
+  const checkInterval = 500; // Check every 500ms
   
   function checkForExtractedNodes() {
     console.log(`[Choices] Checking for extractedNodes (attempt ${retryCount + 1}/${maxRetries})`);
     
+    // Check if extractedNodes exists and has data
     if (window.extractedNodes && Array.isArray(window.extractedNodes) && window.extractedNodes.length > 0) {
       console.log(`[Choices] Found ${window.extractedNodes.length} nodes, updating dropdown`);
       populateDropdownFromExtractedNodes();
       return;
     }
     
+    // If not found, retry with limit
     retryCount++;
     if (retryCount < maxRetries) {
       setTimeout(checkForExtractedNodes, checkInterval);
     } else {
       console.error("[Choices] Failed to load extractedNodes after maximum retries");
+      
+      // Optional: Add error handling or fallback
+      dropdown.innerHTML = '<option value="">No destinations available</option>';
     }
   }
   
@@ -143,18 +91,12 @@ document.addEventListener("DOMContentLoaded", () => {
 // Global function to route to destination
 window.routeToDestination = function() {
   const dropdown = document.getElementById('destinationDropdown');
-  
   if (dropdown && dropdown.value) {
-    // Call routing function
+    // Check if goTo function exists before calling
     if (typeof window.goTo === 'function') {
       window.goTo(dropdown.value);
     } else {
       console.error("[Routing] goTo function is not defined");
-    }
-    
-    // Reset dropdown after routing
-    if (window.resetDropdown) {
-      window.resetDropdown();
     }
   }
 };
