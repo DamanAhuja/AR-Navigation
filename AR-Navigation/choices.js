@@ -65,6 +65,11 @@ document.addEventListener("DOMContentLoaded", () => {
       );
     }
   });
+    // Hide dropdown on blur (input loses focus)
+dropdown.choicesInstance.passedElement.element.addEventListener('blur', () => {
+  choices.clearChoices(); // remove suggestions
+});
+
 }
 
 
