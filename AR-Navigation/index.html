@@ -127,18 +127,30 @@
     <script src="choices.js"></script>
 
     <script>
-      function routeToDestination() {
-        const dropdown = document.getElementById('destinationDropdown');
-        const selected = dropdown.value;
-        alert("Routing to: " + selected);
-        // Add your routing logic here
-      }
+  let choicesInstance;
 
-      // Optional: initialize Choices.js
-      new Choices('#destinationDropdown', {
-        searchEnabled: false,
-        itemSelectText: '',
-      });
-    </script>
+  function routeToDestination() {
+    const dropdown = document.getElementById('destinationDropdown');
+    const selected = dropdown.value;
+    alert("Routing to: " + selected);
+    // Add your routing logic here
+  }
+
+  window.addEventListener('DOMContentLoaded', () => {
+    const dropdown = document.getElementById('destinationDropdown');
+    
+    // Destroy existing instance if it exists
+    if (choicesInstance) {
+      choicesInstance.destroy();
+    }
+
+    // Initialize Choices.js
+    choicesInstance = new Choices(dropdown, {
+      searchEnabled: false,
+      itemSelectText: '',
+    });
+  });
+</script>
+
   </body>
 </html>
