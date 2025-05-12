@@ -152,26 +152,6 @@
     bodyObserver.observe(document.body, { attributes: true, attributeFilter: ['style'] });
 
     document.addEventListener('DOMContentLoaded', () => {
-      // Initialize Choices.js
-      try {
-        const dropdown = document.getElementById('destinationDropdown');
-        const choices = new Choices(dropdown, {
-          placeholderValue: 'Select a destination',
-          searchPlaceholderValue: 'Search destinations',
-        });
-        choices.setChoices([
-          { value: 'Entrance', label: 'Entrance' },
-          { value: 'Entrance2', label: 'Entrance 2' },
-        ], 'value', 'label', true);
-      } catch (error) {
-        console.error('Choices.js initialization failed:', error);
-        const dropdown = document.getElementById('destinationDropdown');
-        dropdown.innerHTML = `
-          <option value="Entrance">Entrance</option>
-          <option value="Entrance2">Entrance 2</option>
-        `;
-      }
-
       const sceneEl = document.querySelector('a-scene');
       if (sceneEl) {
         sceneEl.addEventListener('loaded', () => {
