@@ -10,6 +10,19 @@
       this.getDeviceParams = function() { return null; };
       this.fetchDeviceParams_ = function() {};
     };
+    window.THREEx = window.THREEx || {};
+THREEx.ArToolkitContext = THREEx.ArToolkitContext || {};
+THREEx.ArToolkitContext.copyElementSizeTo = function(element, targetElement) {
+  if (targetElement === document.body) {
+    console.log('Prevented AR.js from modifying body style');
+    return; // Do nothing if the target is <body>
+  }
+  // Otherwise, perform the original behavior
+  targetElement.style.width = element.style.width;
+  targetElement.style.height = element.style.height;
+  targetElement.style.marginLeft = element.style.marginLeft;
+  targetElement.style.marginTop = element.style.marginTop;
+};
   </script>
   <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
   <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js@3.4.4/aframe/build/aframe-ar.min.js"></script>
@@ -166,19 +179,7 @@ bodyObserver.observe(document.body, { attributes: true, attributeFilter: ['style
         }
       });
     });
-    window.THREEx = window.THREEx || {};
-THREEx.ArToolkitContext = THREEx.ArToolkitContext || {};
-THREEx.ArToolkitContext.copyElementSizeTo = function(element, targetElement) {
-  if (targetElement === document.body) {
-    console.log('Prevented AR.js from modifying body style');
-    return; // Do nothing if the target is <body>
-  }
-  // Otherwise, perform the original behavior
-  targetElement.style.width = element.style.width;
-  targetElement.style.height = element.style.height;
-  targetElement.style.marginLeft = element.style.marginLeft;
-  targetElement.style.marginTop = element.style.marginTop;
-};
+    
   </script>
 </body>
 </html>
