@@ -4,10 +4,12 @@
     <meta charset="utf-8" />
     <title>AR + Map + Hidden SVG + Multiple Markers</title>
 
-    <!-- Three.js & MindAR -->
-    <script src="https://cdn.jsdelivr.net/npm/three@0.150.0/build/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.1.4/dist/mindar-image-three.prod.js"></script>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/mind-ar@1.1.4/dist/mindar-image-three.prod.css" />
+    <!-- A-Frame -->
+    <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
+
+    <!-- MindAR -->
+    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.1.4/dist/mindar-aframe.prod.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/mind-ar@1.1.4/dist/mindar-aframe.prod.css" />
 
     <!-- Leaflet -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
@@ -106,62 +108,31 @@
     <script src="MarkerHandler.js"></script>
     <script src="choices.js"></script>
 
-    <!-- AR and marker setup -->
+    <!-- A-Frame with MindAR integration -->
+    <a-scene embedded arjs="sourceType: webcam; debugUIEnabled: false; trackingMethod: best;">
+      <!-- AR Container -->
+      <a-entity mindar="imageTargetSrc: ./test.mind; trackerType: image;"></a-entity>
+
+      <!-- The 3D Object (Cube) -->
+      <a-box position="0 0.5 -1" color="#00FF00" width="0.2" height="0.2" depth="0.2"></a-box>
+    </a-scene>
+
     <script>
-  const start = async () => {
-    try {
-      window.mindarThree = new window.MINDAR.IMAGE.MindARThree({
-        container: document.querySelector("#ar-container"),
-        imageTargetSrc: "./test.mind" // Ensure this includes multiple image targets
-      });
+      // Initialization and setup for AR and Marker Handling
+      const startAR = async () => {
+        try {
+          const mindARScene = new window.MINDAR.AFRAME.MindARScene({
+            src: './test.mind',
+            trackerType: 'image'
+          });
 
-      const { renderer, scene, camera } = mindarThree;
-      const totalTargets = 2; // Adjust to your number of markers
-      const anchors = [];
+          await mindARScene.start();
+        } catch (error) {
+          console.error("MindAR initialization error:", error);
+        }
+      };
 
-      // Create and add the cube to the scene
-      const cube = new THREE.Mesh(
-        new THREE.BoxGeometry(0.2, 0.2, 0.2),
-        new THREE.MeshLambertMaterial({ color: 0x00ff00 }) // Change to Lambert material for better lighting
-      );
-      cube.position.set(0, 0, -1); // 1 meter in front of the camera
-      scene.add(cube); // Add the cube to the scene immediately
-
-      // Add a basic light source to illuminate the cube
-      const light = new THREE.AmbientLight(0xFFFFFF, 1); // White light
-      scene.add(light);
-
-      // Add anchors for marker detection
-      for (let i = 0; i < totalTargets; i++) {
-        const anchor = mindarThree.addAnchor(i);
-        anchors.push(anchor);
-
-        // Optional: If you want to do something when a target is found or lost
-        anchor.onTargetFound = () => {
-          console.log(`Target ${i} found`);
-        };
-
-        anchor.onTargetLost = () => {
-          console.log(`Target ${i} lost`);
-        };
-      }
-
-      // Start MindAR and render the scene
-      await mindarThree.start();
-      window.arScene = mindarThree;
-
-      // Render the scene continuously
-      renderer.setAnimationLoop(() => {
-        renderer.render(scene, camera);
-      });
-    } catch (error) {
-      console.error("Error starting MindAR:", error);
-    }
-  };
-
-  start();
-</script>
-
-
+      startAR();
+    </script>
   </body>
 </html>
