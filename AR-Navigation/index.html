@@ -105,10 +105,12 @@
   </style>
 </head>
 <body>
-  <div id="routing-ui">
-    <select id="destinationDropdown" multiple></select>
-    <button onclick="routeToDestination()">Go</button>
-  </div>
+ 
+<div id="routing-ui">
+        <select id="destinationDropdown" class="choices"></select>
+        <button onclick="routeToDestination()">Go</button>
+         </div>
+     
 
   <div class="container">
     <div id="map"></div>
@@ -119,11 +121,7 @@
 
  <a-scene embedded arjs>
    
-  
-
-    
-    <!-- Markers from the other script -->
-    <a-marker preset="hiro">
+  <a-marker preset="hiro">
       <a-box position="0 0.1 0" material="color: #00FF00" depth="0.2" height="0.2" width="0.2"></a-box>
     </a-marker>
     <a-marker preset="kanji">
