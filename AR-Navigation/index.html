@@ -104,9 +104,13 @@
     <object id="svgObject" type="image/svg+xml" data="RDSC.svg"></object>
   </div>
   <a-scene embedded arjs="sourceType: webcam; debugUIEnabled: true; trackingMethod: best" vr-mode-ui="enabled: false">
-    <a-camera position="0 1.6 0" camera="fov: 80"></a-camera>
-    <a-box position="0 0.5 -0.5" material="color: blue" scale="0.2 0.2 0.2"></a-box>
-    <a-sphere position="0 0.3 -0.3" radius="0.1" material="color: red"></a-sphere>
+    <a-camera position="0 1.6 0" camera="fov: 80; near: 0.1; far: 100">
+      <a-box position="0 -0.5 -0.3" material="color: blue; opacity: 1" scale="0.3 0.3 0.3" visible="true"></a-box>
+      <a-sphere position="0.1 -0.5 -0.3" radius="0.15" material="color: red; opacity: 1" visible="true"></a-sphere>
+    </a-camera>
+    <a-plane position="0 0 -1" rotation="-90 0 0" width="4" height="4" material="color: gray; opacity: 0.5"></a-plane>
+    <a-entity light="type: ambient; intensity: 0.5"></a-entity>
+    <a-entity light="type: directional; intensity: 0.5" position="0 1 1"></a-entity>
   </a-scene>
   <script src="svg.js"></script>
   <script src="leaflet.js"></script>
@@ -119,6 +123,12 @@
           console.log('A-Frame scene loaded');
           sceneEl.renderer.setSize(window.innerWidth, window.innerHeight);
           sceneEl.renderer.domElement.style.display = 'block';
+          const camera = sceneEl.querySelector('a-camera');
+          const cube = sceneEl.querySelector('a-box');
+          const sphere = sceneEl.querySelector('a-sphere');
+          console.log('Camera position:', camera.getAttribute('position'));
+          console.log('Cube position:', cube.getAttribute('position'));
+          console.log('Sphere position:', sphere.getAttribute('position'));
         });
         sceneEl.addEventListener('camera-init', () => {
           console.log('AR session initialized (camera ready)');
