@@ -7,9 +7,8 @@
     <!-- A-Frame -->
     <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
 
-    <!-- MindAR -->
-    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.1.4/dist/mindar-aframe.prod.js"></script>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/mind-ar@1.1.4/dist/mindar-aframe.prod.css" />
+    <!-- AR.js -->
+    <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js/aframe/build/aframe-ar.js"></script>
 
     <!-- Leaflet -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
@@ -100,23 +99,26 @@
       <div id="map"></div>
       <object id="svgObject" type="image/svg+xml" data="RDSC.svg"></object>
 
-      <!-- A-Frame with MindAR -->
-      <a-scene
-        mindar-image="imageTargetSrc: ./test.mind;"
-        embedded
-        color-space="sRGB"
-        renderer="colorManagement: true, physicallyCorrectLights"
-        vr-mode-ui="enabled: false"
-        device-orientation-permission-ui="enabled: true">
+      <!-- A-Frame with AR.js -->
+      <a-scene embedded arjs="sourceType: webcam; debugUIEnabled: false;">
 
         <!-- Camera -->
-        <a-camera position="0 0 0" look-controls="enabled: false" wasd-controls="enabled: false"
-          mindar-camera></a-camera>
+        <a-camera position="0 0 0" look-controls="enabled: false" wasd-controls="enabled: false"></a-camera>
 
-        <!-- Cube that appears on target -->
-        <a-entity mindar-image-target="targetIndex: 0">
+        <!-- Marker with 3D model -->
+        <a-marker preset="hiro">
           <a-box position="0 0.1 0" material="color: #00FF00" depth="0.2" height="0.2" width="0.2"></a-box>
-        </a-entity>
+        </a-marker>
+
+        <!-- Marker for other objects -->
+        <!-- You can add more markers here -->
+        <a-marker preset="kanji">
+          <a-sphere position="0 0.1 0" radius="0.2" material="color: red"></a-sphere>
+        </a-marker>
+
+        <!-- Optional background -->
+        <a-entity geometry="primitive: plane; width: 1; height: 1" material="color: gray" position="0 0 -1"></a-entity>
+
       </a-scene>
     </div>
 
@@ -127,20 +129,11 @@
     <script src="choices.js"></script>
 
     <script>
-  /*let choicesInstance;
-    
-    // Destroy existing instance if it exists
-    if (choicesInstance) {
-      choicesInstance.destroy();
-    }
-
-    // Initialize Choices.js
-    choicesInstance = new Choices(dropdown, {
-      searchEnabled: false,
-      itemSelectText: '',
-    });*/
-  
-</script>
+      // Example function to route to a destination (you can modify this as needed)
+      /*function routeToDestination() {
+        alert('Routing to selected destination!');
+      }*/
+    </script>
 
   </body>
 </html>
