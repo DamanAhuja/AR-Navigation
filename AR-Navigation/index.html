@@ -25,16 +25,22 @@
       targetElement.style.marginLeft = element.style.marginLeft;
       targetElement.style.marginTop = element.style.marginTop;
     };
-    // Disable WebVR system in A-Frame 0.8.0
-    AFRAME = window.AFRAME || {};
-    AFRAME.registerSystem('webvr', {
-      init: function () {
-        console.log('WebVR system disabled');
-        this.el.sceneEl.systems.vr = null;
-      }
-    });
   </script>
   <script src="https://aframe.io/releases/0.8.0/aframe.min.js"></script>
+  <script>
+    // Confirm A-Frame version
+    console.log('A-Frame version:', AFRAME.version);
+    if (typeof AFRAME.registerSystem !== 'function') {
+      console.error('AFRAME.registerSystem is not a function. Current A-Frame version:', AFRAME.version);
+    } else {
+      AFRAME.registerSystem('webvr', {
+        init: function () {
+          console.log('WebVR system disabled');
+          this.el.sceneEl.systems.vr = null;
+        }
+      });
+    }
+  </script>
   <script src="https://jeromeetienne.github.io/AR.js/aframe/build/aframe-ar.js"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
