@@ -21,7 +21,7 @@
     body{
       margin: 0;
       padding: 0;
-      margin-left: 0 !important;
+      margin-left: 0 ;
       width: 100%;
       height: 100%;
       overflow: hidden; /* Ensure no overflow happens */
@@ -166,6 +166,19 @@ bodyObserver.observe(document.body, { attributes: true, attributeFilter: ['style
         }
       });
     });
+    window.THREEx = window.THREEx || {};
+THREEx.ArToolkitContext = THREEx.ArToolkitContext || {};
+THREEx.ArToolkitContext.copyElementSizeTo = function(element, targetElement) {
+  if (targetElement === document.body) {
+    console.log('Prevented AR.js from modifying body style');
+    return; // Do nothing if the target is <body>
+  }
+  // Otherwise, perform the original behavior
+  targetElement.style.width = element.style.width;
+  targetElement.style.height = element.style.height;
+  targetElement.style.marginLeft = element.style.marginLeft;
+  targetElement.style.marginTop = element.style.marginTop;
+};
   </script>
 </body>
 </html>
