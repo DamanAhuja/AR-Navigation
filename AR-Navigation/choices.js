@@ -52,8 +52,8 @@ document.addEventListener("DOMContentLoaded", () => {
   
  function updateDropdown() {
     try {
-        // Destroy existing instance to prevent multiple initializations
-        if (choicesInstance) {
+        // Safely destroy Choices instance if it exists and is valid
+        if (choicesInstance && choicesInstance.passedElement?.element) {
             choicesInstance.destroy();
         }
 
@@ -87,6 +87,7 @@ document.addEventListener("DOMContentLoaded", () => {
         console.error("[Choices] Error updating dropdown:", error);
     }
 }
+
 
 
   
