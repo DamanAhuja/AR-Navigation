@@ -24,7 +24,7 @@ document.addEventListener("DOMContentLoaded", () => {
       searchPlaceholderValue: 'Search destinations...',
       itemSelectText: '',
       placeholder: true,
-      placeholderValue: 'Select destination...',
+      //placeholderValue: 'Select destination...',
       searchFloor: 1,
       searchResultLimit: 10,
       renderChoiceLimit: 1, // Limit initial rendering
