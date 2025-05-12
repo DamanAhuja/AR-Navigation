@@ -4,7 +4,14 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>AR + Map + Hidden SVG + Multiple Markers</title>
-  
+  <script>
+  // Prevent webvr-polyfill from trying to fetch dpdb.json
+  window.DeviceParamsDB = function() {
+    this.getDeviceParams = function() { return null; };
+    this.fetchDeviceParams_ = function() {};
+  };
+</script>
+
   <script src="https://aframe.io/releases/0.9.2/aframe.min.js"></script>
 <!-- include ar.js for A-Frame -->
 <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js@3.3.2/aframe/build/aframe-ar-nft.min.js"></script>
