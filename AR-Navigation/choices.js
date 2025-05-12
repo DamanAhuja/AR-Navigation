@@ -52,43 +52,21 @@ document.addEventListener("DOMContentLoaded", () => {
   
  function updateDropdown() {
     try {
-        // Safely destroy Choices instance if it exists and is valid
-        if (choicesInstance && choicesInstance.passedElement?.element) {
-            choicesInstance.destroy();
-        }
-
-        // Clear existing options from dropdown
-        while (dropdown.firstChild) {
-            dropdown.removeChild(dropdown.firstChild);
-        }
-
-        // Rebuild dropdown options
         const choicesList = window.extractedNodes.map(node => ({
             value: node.id,
             label: node.id
         }));
-
-        const newOptions = [
+        
+        choicesInstance.setChoices([
             { value: "", label: "Select destination...", disabled: true, selected: true },
             ...choicesList
-        ];
-
-        // Reinitialize Choices with updated options
-        choicesInstance = new Choices(dropdown, {
-            searchEnabled: false,
-            itemSelectText: '',
-            choices: newOptions,
-            placeholder: true,
-            placeholderValue: "Select destination..."
-        });
-
+        ], 'value', 'label', true);
+        
         console.log("[Choices] Dropdown successfully updated with node data");
     } catch (error) {
         console.error("[Choices] Error updating dropdown:", error);
     }
 }
-
-
 
   
   function updateDropdownWithError() {
