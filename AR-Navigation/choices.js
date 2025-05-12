@@ -8,21 +8,17 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function populateDropdownFromExtractedNodes() {
+    // Clear existing dropdown content
     dropdown.innerHTML = '';
 
-    const placeholderOption = document.createElement('option');
-    placeholderOption.value = "";
-    placeholderOption.text = "Select destination...";
-    placeholderOption.disabled = true;
-    placeholderOption.selected = true;
-    dropdown.appendChild(placeholderOption);
-
-    const destinations = window.extractedNodes.map(node => node.id);
-
+    // Destroy existing Choices instance if any
     if (dropdown.choicesInstance) {
       dropdown.choicesInstance.destroy();
     }
 
+    const destinations = window.extractedNodes.map(node => node.id);
+
+    // Init Choices with placeholder, minimal config
     const choices = new Choices(dropdown, {
       searchEnabled: true,
       searchPlaceholderValue: 'Search destinations...',
@@ -31,14 +27,17 @@ document.addEventListener("DOMContentLoaded", () => {
       placeholderValue: 'Select destination...',
       searchFloor: 1,
       searchResultLimit: 10,
+      renderChoiceLimit: 1, // Limit initial rendering
       shouldSort: false,
-      removeItemButton: false,
+      maxItemCount: 1,
+      removeItems: false,
       duplicateItemsAllowed: false,
       renderSelectedChoices: 'auto',
     });
 
     dropdown.choicesInstance = choices;
 
+    // Add choices programmatically AFTER init
     choices.setChoices(
       destinations.map(dest => ({
         value: dest,
@@ -51,33 +50,30 @@ document.addEventListener("DOMContentLoaded", () => {
       false
     );
 
-    // Hide dropdown list on blur
+    // Hide dropdown on blur
     const input = dropdown.parentElement.querySelector('input');
+    const list = dropdown.parentElement.querySelector('.choices__list--dropdown');
+
     if (input) {
-      input.addEventListener('blur', () => {
-        // Delay needed to allow click selection before blur hides it
-        setTimeout(() => {
-          const list = dropdown.parentElement.querySelector('.choices__list--dropdown');
-          if (list) list.style.display = 'none';
-        }, 200);
+      input.addEventListener('focus', () => {
+        if (list) list.style.display = '';
       });
 
-      // Show list on focus if there's input
-      input.addEventListener('focus', () => {
-        const list = dropdown.parentElement.querySelector('.choices__list--dropdown');
-        if (list) list.style.display = '';
+      input.addEventListener('blur', () => {
+        setTimeout(() => {
+          if (list) list.style.display = 'none';
+        }, 200);
       });
     }
   }
 
-  // Retry until extractedNodes are available
+  // Retry mechanism
   let retryCount = 0;
   const maxRetries = 30;
   const checkInterval = 500;
 
   function checkForExtractedNodes() {
     console.log(`[Choices] Checking for extractedNodes (attempt ${retryCount + 1}/${maxRetries})`);
-
     if (window.extractedNodes && Array.isArray(window.extractedNodes) && window.extractedNodes.length > 0) {
       console.log(`[Choices] Found ${window.extractedNodes.length} nodes, updating dropdown`);
       populateDropdownFromExtractedNodes();
@@ -96,14 +92,24 @@ document.addEventListener("DOMContentLoaded", () => {
   checkForExtractedNodes();
 });
 
-// Route function
-window.routeToDestination = function() {
+window.routeToDestination = function () {
   const dropdown = document.getElementById('destinationDropdown');
-  if (dropdown && dropdown.value) {
+  const selectedValue = dropdown?.value;
+
+  if (dropdown && selectedValue) {
+    // Trigger path rendering
     if (typeof window.goTo === 'function') {
-      window.goTo(dropdown.value);
+      window.goTo(selectedValue);
     } else {
       console.error("[Routing] goTo function is not defined");
     }
+
+    // Reset the dropdown selection
+    const choicesInstance = dropdown.choicesInstance;
+    if (choicesInstance) {
+      choicesInstance.removeActiveItems(); // Clear selection
+      choicesInstance.setChoiceByValue(''); // Reset to placeholder
+    }
   }
 };
+
