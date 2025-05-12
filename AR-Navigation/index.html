@@ -127,6 +127,11 @@
   <script src="leaflet.js"></script>
   <script src="MarkerHandler.js"></script>
   <script>
+    const bodyObserver = new MutationObserver(() => {
+  console.log('Body style changed:', document.body.style.cssText);
+  console.trace('Stack trace for body style change');
+});
+bodyObserver.observe(document.body, { attributes: true, attributeFilter: ['style'] });
     document.addEventListener('DOMContentLoaded', () => {
       const sceneEl = document.querySelector('a-scene');
       if (sceneEl) {
