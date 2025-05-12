@@ -102,23 +102,10 @@
       <!-- A-Frame with AR.js -->
       <a-scene embedded arjs="sourceType: webcam; debugUIEnabled: false;">
 
-        <!-- Camera -->
-        <a-camera position="0 0 0" look-controls="enabled: false" wasd-controls="enabled: false"></a-camera>
+        <a-camera gps-camera rotation-reader></a-camera>
 
-        <!-- Marker with 3D model -->
-        <a-marker preset="hiro">
-          <a-box position="0 0.1 0" material="color: #00FF00" depth="0.2" height="0.2" width="0.2"></a-box>
-        </a-marker>
-
-        <!-- Marker for other objects -->
-        <!-- You can add more markers here -->
-        <a-marker preset="kanji">
-          <a-sphere position="0 0.1 0" radius="0.2" material="color: red"></a-sphere>
-        </a-marker>
-
-        <!-- Optional background -->
-        <a-entity geometry="primitive: plane; width: 1; height: 1" material="color: gray" position="0 0 -1"></a-entity>
-
+  <!-- Floating Cube without marker -->
+  <a-box position="0 0 -2" color="blue" depth="1" height="1" width="1"></a-box>
       </a-scene>
     </div>
 
