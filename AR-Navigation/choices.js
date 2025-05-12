@@ -8,103 +8,84 @@ document.addEventListener("DOMContentLoaded", () => {
     return;
   }
   
-  // Predefined list of destinations as a fallback
-  const defaultDestinations = [
-    'Cabin1', 'Cabin2', 'Cabin3', 
-    'Conference1', 'Conference2', 
-    'Corridor1', 'Corridor2', 'Corridor3', 
-    'Entrance', 'Entrance2', 
-    'Kitchen', 
-    'Lab1', 'Lab2', 
-    'Podcast'
-  ];
-  
-  // Create initial placeholder state
-  const placeholderOption = document.createElement('option');
-  placeholderOption.value = "";
-  placeholderOption.text = "Select destination...";
-  placeholderOption.disabled = true;
-  placeholderOption.selected = true;
-  dropdown.appendChild(placeholderOption);
-  
-  // Initialize Choices.js with default state
-  let choicesInstance = new Choices(dropdown, {
-    searchEnabled: true,
-    itemSelectText: '',
-    placeholder: true,
-    placeholderValue: "Select destination..."
-  });
-  
-  // Function to populate dropdown
-  function populateDropdown(destinations) {
-    try {
-      // Prepare choices list
-      const choicesList = destinations.map(dest => ({
-        value: dest,
-        label: dest
-      }));
-      
-      // Destroy existing Choices instance
-      if (choicesInstance) {
-        choicesInstance.destroy();
-      }
-      
-      // Clear existing options
-      while (dropdown.firstChild) {
-        dropdown.removeChild(dropdown.firstChild);
-      }
-      
-      // Add placeholder option
-      const placeholderOption = document.createElement('option');
-      placeholderOption.value = "";
-      placeholderOption.text = "Select destination...";
-      placeholderOption.disabled = true;
-      placeholderOption.selected = true;
-      dropdown.appendChild(placeholderOption);
-      
-      // Reinitialize Choices with new options
-      choicesInstance = new Choices(dropdown, {
-        searchEnabled: true,
-        itemSelectText: '',
-        placeholder: true,
-        placeholderValue: "Select destination...",
-        choices: choicesList
-      });
-      
-      console.log("[Choices] Dropdown successfully populated");
-    } catch (error) {
-      console.error("[Choices] Error populating dropdown:", error);
+  // Function to populate dropdown from extractedNodes
+  function populateDropdownFromExtractedNodes() {
+    // Clear any existing options
+    dropdown.innerHTML = '';
+    
+    // Add placeholder option
+    const placeholderOption = document.createElement('option');
+    placeholderOption.value = "";
+    placeholderOption.text = "Select destination...";
+    placeholderOption.disabled = true;
+    placeholderOption.selected = true;
+    dropdown.appendChild(placeholderOption);
+    
+    // Check if extractedNodes exists and is an array
+    if (!window.extractedNodes || !Array.isArray(window.extractedNodes)) {
+      console.error("extractedNodes is not available or not an array");
+      return null;
     }
+    
+    // Add options from extractedNodes
+    const destinations = window.extractedNodes.map(node => node.id);
+    
+    // Initialize Choices.js with specific configuration
+    return new Choices(dropdown, {
+      searchEnabled: true,
+      searchPlaceholderValue: 'Search destinations...',
+      itemSelectText: 'Select',
+      placeholder: true,
+      placeholderValue: 'Select destination...',
+      
+      // Key configurations for the behavior you want
+      searchFloor: 1,  // Require at least 1 character to show suggestions
+      searchResultLimit: 10,  // Limit number of suggestions
+      choices: destinations.map(dest => ({
+        value: dest,
+        label: dest,
+        selected: false,
+        disabled: false
+      })),
+      
+      // Additional configurations
+      shouldSort: false,
+      renderChoiceLimit: 0,  // Initially show no choices
+      maxItemCount: 1,
+      removeItems: false,
+      renderSelectedChoices: 'always'
+    });
   }
   
-  // Try to use extractedNodes if available, otherwise use default destinations
+  // Retry mechanism to wait for extractedNodes
   let retryCount = 0;
-  const maxRetries = 10;
+  const maxRetries = 30;
   const checkInterval = 500; // Check every 500ms
   
-  function checkForNodes() {
+  function checkForExtractedNodes() {
     console.log(`[Choices] Checking for extractedNodes (attempt ${retryCount + 1}/${maxRetries})`);
     
     // Check if extractedNodes exists and has data
     if (window.extractedNodes && Array.isArray(window.extractedNodes) && window.extractedNodes.length > 0) {
       console.log(`[Choices] Found ${window.extractedNodes.length} nodes, updating dropdown`);
-      const nodeDestinations = window.extractedNodes.map(node => node.id);
-      populateDropdown(nodeDestinations);
+      populateDropdownFromExtractedNodes();
       return;
     }
     
     // If not found, retry with limit
     retryCount++;
     if (retryCount < maxRetries) {
-      setTimeout(checkForNodes, checkInterval);
+      setTimeout(checkForExtractedNodes, checkInterval);
     } else {
-      console.warn("[Choices] Failed to load node data, using default destinations");
-      populateDropdown(defaultDestinations);
+      console.error("[Choices] Failed to load extractedNodes after maximum retries");
+      
+      // Optional: Add error handling or fallback
+      dropdown.innerHTML = '<option value="">No destinations available</option>';
     }
   }
   
-  // Start checking for nodes data
-  checkForNodes();
+  // Start checking for extractedNodes
+  checkForExtractedNodes();
 });
 
 // Global function to route to destination
