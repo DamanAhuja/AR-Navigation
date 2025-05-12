@@ -163,7 +163,7 @@ const arrowMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
   new THREE.MeshBasicMaterial({ color: 0xff0000 })
 );
 cube.position.set(0, 0, -1);
-window.arScene.scene.add(cube);
+//window.arScene.scene.add(cube);
     
     // Array to store all path points with their real-world distances
     let cumulativePathPoints = [];
