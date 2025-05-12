@@ -10,52 +10,56 @@ document.addEventListener("DOMContentLoaded", () => {
   
   // Function to populate dropdown from extractedNodes
   function populateDropdownFromExtractedNodes() {
-    // Clear any existing options
-    dropdown.innerHTML = '';
-    
-    // Add placeholder option
-    const placeholderOption = document.createElement('option');
-    placeholderOption.value = "";
-    placeholderOption.text = "Select destination...";
-    placeholderOption.disabled = true;
-    placeholderOption.selected = true;
-    dropdown.appendChild(placeholderOption);
-    
-    // Check if extractedNodes exists and is an array
-    if (!window.extractedNodes || !Array.isArray(window.extractedNodes)) {
-      console.error("extractedNodes is not available or not an array");
-      return null;
-    }
-    
-    // Add options from extractedNodes
-    const destinations = window.extractedNodes.map(node => node.id);
-    
-    // Initialize Choices.js with specific configuration
-    return new Choices(dropdown, {
-      searchEnabled: true,
-      searchPlaceholderValue: 'Search destinations...',
-      itemSelectText: 'Select',
-      placeholder: true,
-      placeholderValue: 'Select destination...',
-      
-      // Key configurations for the behavior you want
-      searchFloor: 1,  // Require at least 1 character to show suggestions
-      searchResultLimit: 10,  // Limit number of suggestions
-      choices: destinations.map(dest => ({
-        value: dest,
-        label: dest,
-        selected: false,
-        disabled: false
-      })),
-      
-      // Additional configurations
-      shouldSort: false,
-      renderChoiceLimit: 0,  // Initially show no choices
-      maxItemCount: 1,
-      removeItems: false,
-      renderSelectedChoices: 'always'
-    });
+  dropdown.innerHTML = '';
+
+  const placeholderOption = document.createElement('option');
+  placeholderOption.value = "";
+  placeholderOption.text = "Select destination...";
+  placeholderOption.disabled = true;
+  placeholderOption.selected = true;
+  dropdown.appendChild(placeholderOption);
+
+  const destinations = window.extractedNodes.map(node => node.id);
+
+  // Destroy previous Choices instance if it exists
+  if (dropdown.choicesInstance) {
+    dropdown.choicesInstance.destroy();
   }
+
+  // Initialize Choices.js with minimal config to suppress preloading
+  const choices = new Choices(dropdown, {
+    searchEnabled: true,
+    searchPlaceholderValue: 'Search destinations...',
+    itemSelectText: '',
+    placeholder: true,
+    placeholderValue: 'Select destination...',
+    searchFloor: 1,
+    searchResultLimit: 10,
+    shouldSort: false,
+    renderChoiceLimit: 0,
+    maxItemCount: 1,
+    removeItems: false,
+    renderSelectedChoices: 'always',
+    duplicateItemsAllowed: false,
+  });
+
+  // Store the instance for future reference or destruction
+  dropdown.choicesInstance = choices;
+
+  // Add choices programmatically after init
+  choices.setChoices(
+    destinations.map(dest => ({
+      value: dest,
+      label: dest,
+      selected: false,
+      disabled: false
+    })),
+    'value',
+    'label',
+    false
+  );
+}
+
   
   // Retry mechanism to wait for extractedNodes
   let retryCount = 0;
