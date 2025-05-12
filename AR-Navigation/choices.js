@@ -13,20 +13,20 @@ document.addEventListener("DOMContentLoaded", () => {
   dropdown.innerHTML = '';
 
   const placeholderOption = document.createElement('option');
-  placeholderOption.value = "";
-  placeholderOption.text = "Select destination...";
+  placeholderOption.value = '';
+  placeholderOption.text = 'Select destination...';
   placeholderOption.disabled = true;
   placeholderOption.selected = true;
   dropdown.appendChild(placeholderOption);
 
   const destinations = window.extractedNodes.map(node => node.id);
 
-  // Destroy previous Choices instance if it exists
+  // Destroy previous instance
   if (dropdown.choicesInstance) {
     dropdown.choicesInstance.destroy();
   }
 
-  // Initialize Choices.js with minimal config to suppress preloading
+  // Init Choices with no initial options
   const choices = new Choices(dropdown, {
     searchEnabled: true,
     searchPlaceholderValue: 'Search destinations...',
@@ -36,29 +36,37 @@ document.addEventListener("DOMContentLoaded", () => {
     searchFloor: 1,
     searchResultLimit: 10,
     shouldSort: false,
-    renderChoiceLimit: 0,
+    renderChoiceLimit: 10,
     maxItemCount: 1,
     removeItems: false,
     renderSelectedChoices: 'always',
     duplicateItemsAllowed: false,
   });
 
-  // Store the instance for future reference or destruction
   dropdown.choicesInstance = choices;
 
-  // Add choices programmatically after init
-  choices.setChoices(
-    destinations.map(dest => ({
-      value: dest,
-      label: dest,
-      selected: false,
-      disabled: false
-    })),
-    'value',
-    'label',
-    false
-  );
+  // Listen for search input to add filtered options
+  dropdown.choicesInstance.passedElement.element.addEventListener('search', (event) => {
+    const inputValue = event.detail.value.trim().toLowerCase();
+
+    // Clear previous dynamic options
+    choices.clearChoices();
+
+    if (inputValue.length >= 1) {
+      const filtered = destinations.filter(dest => dest.toLowerCase().includes(inputValue));
+      choices.setChoices(
+        filtered.map(dest => ({
+          value: dest,
+          label: dest
+        })),
+        'value',
+        'label',
+        false
+      );
+    }
+  });
 }
+
 
   
   // Retry mechanism to wait for extractedNodes
