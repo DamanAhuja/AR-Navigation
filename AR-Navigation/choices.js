@@ -8,9 +8,11 @@ document.addEventListener("DOMContentLoaded", () => {
     return;
   }
   
-  // Ensure cleanup of any existing Choices instances
+  // Ensure complete cleanup
   if (window.existingChoices) {
-    window.existingChoices.destroy();
+    try {
+      window.existingChoices.destroy();
+    } catch(e) {}
   }
   
   // Function to populate dropdown from extractedNodes
@@ -27,43 +29,87 @@ document.addEventListener("DOMContentLoaded", () => {
     // Prepare destinations
     const destinations = window.extractedNodes.map(node => node.id);
     
-    // Add placeholder option
-    const placeholderOption = document.createElement('option');
-    placeholderOption.value = '';
-    placeholderOption.text = 'Select destination...';
-    placeholderOption.selected = true;
-    dropdown.appendChild(placeholderOption);
-    
-    // Add destination options
-    destinations.forEach(dest => {
-      const option = document.createElement('option');
-      option.value = dest;
-      option.text = dest;
-      dropdown.appendChild(option);
-    });
-    
-    // Initialize Choices.js with aggressive reset configuration
+    // Initialize Choices.js with full configuration
     const choicesInstance = new Choices(dropdown, {
+      choices: [
+        {
+          value: '',
+          label: 'Select destination...',
+          selected: true,
+          disabled: true
+        },
+        ...destinations.map(dest => ({
+          value: dest,
+          label: dest,
+          selected: false,
+          disabled: false
+        }))
+      ],
       searchEnabled: true,
+      searchChoices: true,
       searchPlaceholderValue: 'Search destinations...',
       placeholder: true,
       placeholderValue: 'Select destination...',
       
-      // Key configurations
-      searchFloor: 1,  // Require at least 1 character to show suggestions
-      searchResultLimit: 10,  // Limit number of suggestions
-      
-      // Strict selection control
-      removeItems: false,
+      // Search and selection configurations
+      searchFloor: 1,  // Show suggestions after 1 character
+      searchResultLimit: 10,  // Limit suggestions
       shouldSort: false,
-      maxItemCount: 1,
+      maxItemCount: 1,  // Only one selection allowed
+      removeItems: false,
       
-      // Ensure no preselected items
-      renderSelectedChoices: 'always'
+      // Rendering preferences
+      renderSelectedChoices: 'always',
+      
+      // UI Customization
+      itemSelectText: '',
+      classNames: {
+        containerOuter: 'choices',
+        containerInner: 'choices__inner',
+        input: 'choices__input',
+        inputCloned: 'choices__input--cloned',
+        list: 'choices__list',
+        listItems: 'choices__list--multiple',
+        listSingle: 'choices__list--single',
+        listDropdown: 'choices__list--dropdown',
+        item: 'choices__item',
+        itemSelectable: 'choices__item--selectable',
+        itemDisabled: 'choices__item--disabled',
+        itemChoice: 'choices__item--choice',
+        placeholder: 'choices__placeholder',
+        group: 'choices__group',
+        groupHeading: 'choices__heading',
+        button: 'choices__button',
+        activeState: 'is-active',
+        focusState: 'is-focused',
+        openState: 'is-open',
+        disabledState: 'is-disabled',
+        highlightedState: 'is-highlighted',
+        selectedState: 'is-selected',
+        flippedState: 'is-flipped',
+        loadingState: 'is-loading',
+        noResults: 'has-no-results',
+        noChoices: 'has-no-choices'
+      }
     });
     
-    // Store global reference to allow manual reset
+    // Store global reference
     window.existingChoices = choicesInstance;
+    
+    // Add custom reset method
+    window.resetDropdown = () => {
+      if (window.existingChoices) {
+        // Reset to placeholder
+        window.existingChoices.setChoiceByValue('');
+        
+        // Ensure input is cleared
+        const choicesInput = dropdown.closest('.choices').querySelector('.choices__input');
+        if (choicesInput) {
+          choicesInput.value = '';
+          choicesInput.setAttribute('placeholder', 'Select destination...');
+        }
+      }
+    };
     
     return choicesInstance;
   }
@@ -99,17 +145,16 @@ window.routeToDestination = function() {
   const dropdown = document.getElementById('destinationDropdown');
   
   if (dropdown && dropdown.value) {
-    // Reset choices instance if exists
-    if (window.existingChoices) {
-      window.existingChoices.setChoiceByValue('');
-      dropdown.selectedIndex = 0;
-    }
-    
     // Call routing function
     if (typeof window.goTo === 'function') {
       window.goTo(dropdown.value);
     } else {
       console.error("[Routing] goTo function is not defined");
+    }
+    
+    // Reset dropdown after routing
+    if (window.resetDropdown) {
+      window.resetDropdown();
     }
   }
 };
