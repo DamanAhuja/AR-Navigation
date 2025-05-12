@@ -3,15 +3,82 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Minimal A-Frame AR Test</title>
+  <title>AR + Map + Hidden SVG + Multiple Markers</title>
+  <script>
+    window.DeviceParamsDB = function() {
+      this.getDeviceParams = function() { return null; };
+      this.fetchDeviceParams_ = function() {};
+    };
+  </script>
   <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
   <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js@3.4.4/aframe/build/aframe-ar.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/choices.js/public/assets/scripts/choices.min.js"></script>
+  <script src="choices.js"></script>
   <style>
     body {
       margin: 0;
       overflow: hidden;
+      position: relative;
     }
-    a-scene {
+    #routing-ui {
+      position: fixed;
+      top: 10px;
+      left: 10px;
+      right: 10px;
+      z-index: 1000;
+      background: rgba(255,255,255,0.9);
+      padding: 10px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 15px;
+      max-width: 500px;
+      margin: 0 auto;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.25);
+    }
+    #destinationDropdown {
+      width: 300px;
+    }
+    #routing-ui button {
+      padding: 8px 15px;
+      font-size: 16px;
+      background-color: #1976d2;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+    #routing-ui button:hover {
+      background-color: #1259a6;
+    }
+    #map {
+      position: fixed;
+      bottom: 10px;
+      left: 10px;
+      width: 40%;
+      max-width: 300px;
+      height: 40%;
+      max-height: 300px;
+      border: 2px solid white;
+      border-radius: 5px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.5);
+      z-index: 999;
+      display: block !important;
+      visibility: visible !important;
+    }
+    #svgObject {
+      width: 600px;
+      height: 900px;
+      border-left: 1px solid #ccc;
+      opacity: 1;
+      z-index: 5;
+      visibility: hidden;
+    }
+    .a-scene {
       position: fixed;
       top: 0;
       left: 0;
@@ -19,17 +86,35 @@
       height: 100vh;
       z-index: 0;
     }
+    .container {
+      width: 100%;
+      height: 100%;
+      position: relative;
+      z-index: 998;
+    }
   </style>
 </head>
 <body>
-  <a-scene embedded arjs="sourceType: webcam; debugUIEnabled: true" vr-mode-ui="enabled: false">
+  <div id="routing-ui">
+    <select id="destinationDropdown" class="choices"></select>
+    <button onclick="routeToDestination()">Go</button>
+  </div>
+  <div class="container">
+    <div id="map"></div>
+    <object id="svgObject" type="image/svg+xml" data="RDSC.svg"></object>
+  </div>
+  <a-scene embedded arjs="sourceType: webcam; debugUIEnabled: true; trackingMethod: best" vr-mode-ui="enabled: false">
     <a-camera position="0 1.6 0" camera="fov: 80; near: 0.1; far: 100">
       <a-box position="0 -0.5 -0.3" material="color: blue; opacity: 1" scale="0.3 0.3 0.3" visible="true"></a-box>
       <a-sphere position="0.1 -0.5 -0.3" radius="0.15" material="color: red; opacity: 1" visible="true"></a-sphere>
     </a-camera>
+    <a-plane position="0 0 -1" rotation="-90 0 0" width="4" height="4" material="color: gray; opacity: 0.5"></a-plane>
     <a-entity light="type: ambient; intensity: 0.5"></a-entity>
     <a-entity light="type: directional; intensity: 0.5" position="0 1 1"></a-entity>
   </a-scene>
+  <script src="svg.js"></script>
+  <script src="leaflet.js"></script>
+  <script src="MarkerHandler.js"></script>
   <script>
     document.addEventListener('DOMContentLoaded', () => {
       const sceneEl = document.querySelector('a-scene');
@@ -49,12 +134,15 @@
           console.log('AR session initialized (camera ready)');
           sceneEl.renderer.setSize(window.innerWidth, window.innerHeight);
         });
-        sceneEl.addEventListener('camera-error', (err) => {
-          console.error('AR camera error:', err.detail);
-        });
         setTimeout(() => {
           if (!sceneEl.hasLoaded) console.warn('A-Frame scene not loaded after 5s');
         }, 5000);
+      }
+      const mapDiv = document.getElementById('map');
+      if (!mapDiv) {
+        console.error('Map div not found');
+      } else {
+        console.log('Map div found');
       }
       window.addEventListener('resize', () => {
         if (sceneEl) {
