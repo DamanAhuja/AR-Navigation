@@ -1,8 +1,3 @@
-<!-- HTML Dropdown -->
-<select id="destinationDropdown" placeholder="Select destination..."></select>
-
-<!-- JS Script -->
-<script>
 document.addEventListener("DOMContentLoaded", () => {
   console.log("Choices.js initializing...");
 
@@ -112,4 +107,3 @@ window.routeToDestination = function() {
     }
   }
 };
-</script>
