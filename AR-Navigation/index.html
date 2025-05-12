@@ -54,7 +54,7 @@
       display: none;
     }
 
-    #markerStatus {
+    /*#markerStatus {
       position: fixed;
       top: 20px;
       left: 20px;
@@ -65,47 +65,96 @@
       font-family: sans-serif;
       z-index: 1000;
       display: none;
+    }*/
+
+    .container-1 {
+      width: 100%;
+      height: 100%;
+      position: relative;
     }
+
+    #routing-ui {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      right: 10px;
+      z-index: 999;
+      background: white;
+      padding: 20px;
+      height: 120px;
+      border-radius: 20px;
+      pointer-events: auto;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.25);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 15px;
+    }
+
+    #destinationDropdown {
+      width: 300px;
+    }
+
+    #routing-ui button {
+      padding: 12px 20px;
+      font-size: 16px;
+      background-color: #1976d2;
+      color: white;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+
+    #routing-ui button:hover {
+      background-color: #1259a6;
+    }
+
   </style>
 </head>
 <body>
+
+   <script src="choices.js"></script>
+  <div class="container-1">
+    <div id="routing-ui">
+      <select id="destinationDropdown" class="choices"></select>
+      <button onclick="routeToDestination()">Go</button>
+    </div>
+    
   <div class="container">
     <div id="map"></div>
     <object id="svgObject" type="image/svg+xml" data="RDSC.svg"></object>
   </div>
 
-  <div id="markerStatus">
-    Marker detected: <span id="markerIdText">N/A</span>
-  </div>
-
-  <!-- A-Frame and AR.js -->
-  <script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
-  <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
-  <!-- Leaflet -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
-
-  <!-- AR Scene -->
+ 
+ <script src="https://aframe.io/releases/0.6.0/aframe.min.js"></script>
+<!-- include ar.js for A-Frame -->
+<script src="https://jeromeetienne.github.io/AR.js/aframe/build/aframe-ar.js"></script>
+  
+ <a-scene embedded arjs>
+   
+  </a-scene>
+  <!-- AR Scene 
   <a-scene arjs="sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix;" vr-mode-ui="enabled: false">
 
-    <!-- Markerless cube always visible in front of the camera -->
-    <a-box position="0 0 -2" color="#FF0000" depth="0.5" height="0.5" width="0.5"></a-box>
 
-    <!-- Camera entity -->
-    <a-entity camera look-controls position="0 0 0"></a-entity>
+    <!-- Camera entity 
+    <a-entity camera look-controls position="0 0 0"></a-entity>-->
 
-    <!-- Markers -->
+    <!-- Markers 
     <a-marker id="Entrance" type="pattern" url="../markers/marker1.patt" markerhandler></a-marker>
     <a-marker id="Corridor1" type="pattern" url="../markers/marker2.patt" markerhandler></a-marker>
     <a-marker id="Kitchen" type="pattern" url="../markers/marker3.patt" markerhandler></a-marker>
-  </a-scene>
+  </a-scene>-->
 
   <!-- Scripts -->
   <script src="svg.js"></script>
   <script src="leaflet.js"></script>
   <script src="markerhandler.js"></script>
 
+
   <script>
-    AFRAME.registerComponent('markerhandler', {
+   /* AFRAME.registerComponent('markerhandler', {
       init: function () {
         const marker = this.el;
 
@@ -117,7 +166,7 @@
           console.log(`Marker lost: ${marker.id}`);
         });
       }
-    });
+    });*/
 
     document.addEventListener('DOMContentLoaded', () => {
       const sceneEl = document.querySelector('a-scene');
