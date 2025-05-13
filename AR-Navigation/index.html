@@ -141,42 +141,22 @@
     <div id="map"></div>
     <object id="svgObject" type="image/svg+xml" data="RDSC.svg"></object>
   </div>
-
-  <!-- ... (Keep everything above this unchanged) ... -->
-<a-scene embedded arjs="sourceType: webcam; debugUIEnabled: true; trackingMethod: best" vr-mode-ui="enabled: false" webxr="optionalFeatures: hit-test">
-  
-  <!-- Camera + UI Cube (unchanged) -->
-  <a-camera position="0 1.6 0" camera="fov: 80; near: 0.1; far: 100">
-    <a-box position="0 -0.5 -0.3" material="color: blue; opacity: 1" scale="0.3 0.3 0.3" visible="true"
-           animation="property: rotation; to: 0 360 0; loop: true; dur: 2000"></a-box>
-  </a-camera>
-
- <a-box id="world-cube"
-       position="0 0 -1"
-       material="color: orange; opacity: 1"
-       scale="0.5 0.5 0.5"
-       visible="true">
-</a-box>
-
-
-
-
-  <!-- Marker-based content -->
-  <a-marker preset="hiro">
-    <a-sphere position="0.5 0.5 0" radius="0.25" material="color: red; opacity: 1"></a-sphere>
-  </a-marker>
-</a-scene>
-<!-- ... (Keep everything below this unchanged) ... -->
-
- <!-- <a-scene embedded arjs="sourceType: webcam; debugUIEnabled: true; trackingMethod: best" vr-mode-ui="enabled: false" webxr="optionalFeatures: hit-test">
+  <a-scene embedded arjs="sourceType: webcam; debugUIEnabled: true; trackingMethod: best" vr-mode-ui="enabled: false" webxr="optionalFeatures: hit-test">
+    <!-- Camera entity -->
     <a-camera position="0 1.6 0" camera="fov: 80; near: 0.1; far: 100">
       <a-box position="0 -0.5 -0.3" material="color: blue; opacity: 1" scale="0.3 0.3 0.3" visible="true" animation="property: rotation; to: 0 360 0; loop: true; dur: 2000"></a-box>
     </a-camera>
-    <a-box position="0 0 -0.5" material="color: green; opacity: 1" scale="0.3 0.3 0.3" visible="true"></a-box>
+    
+    <!-- World-fixed cube (appears at start, not attached to camera) -->
+    <a-entity position="0 0 -2">
+      <a-box class="world-fixed" material="color: green; opacity: 1" scale="0.3 0.3 0.3" visible="true"></a-box>
+    </a-entity>
+    
+    <!-- Marker-based entity (only appears when marker is detected) -->
     <a-marker preset="hiro">
       <a-sphere position="0.5 0.5 0" radius="0.25" material="color: red; opacity: 1"></a-sphere>
     </a-marker>
-  </a-scene>-->
+  </a-scene>
   <script src="svg.js"></script>
   <script src="leaflet.js"></script>
   <script src="MarkerHandler.js"></script>
@@ -199,35 +179,48 @@
           sceneEl.renderer.setSize(window.innerWidth, window.innerHeight);
           sceneEl.renderer.domElement.style.display = 'block';
           const camera = sceneEl.querySelector('a-camera');
-          const cube = sceneEl.querySelector('a-box');
+          const worldCube = sceneEl.querySelector('.world-fixed');
           const sphere = sceneEl.querySelector('a-sphere');
           console.log('Camera position:', camera.getAttribute('position'));
-          console.log('Cube position:', cube.getAttribute('position'));
+          console.log('World-fixed cube created');
           console.log('Sphere position:', sphere.getAttribute('position'));
+          
+          // Initialize the world-fixed cube
+          if (worldCube) {
+            // Set up world anchoring properties
+            worldCube.setAttribute('visible', 'true');
+          }
         });
+        
         sceneEl.addEventListener('camera-init', () => {
           console.log('AR session initialized (camera ready)');
           sceneEl.renderer.setSize(window.innerWidth, window.innerHeight);
         });
+        
         sceneEl.addEventListener('arjs-tracking', (event) => {
           console.log('AR.js tracking status:', event.detail);
         });
+        
         sceneEl.addEventListener('realityready', () => {
           console.log('WebXR reality ready');
         });
+        
         sceneEl.addEventListener('realityerror', (err) => {
           console.error('WebXR reality error:', err.detail);
         });
+        
         setTimeout(() => {
           if (!sceneEl.hasLoaded) console.warn('A-Frame scene not loaded after 5s');
         }, 5000);
       }
+      
       const mapDiv = document.getElementById('map');
       if (!mapDiv) {
         console.error('Map div not found');
       } else {
         console.log('Map div found');
       }
+      
       window.addEventListener('resize', () => {
         if (sceneEl) {
           sceneEl.renderer.setSize(window.innerWidth, window.innerHeight);
