@@ -142,15 +142,15 @@
     <object id="svgObject" type="image/svg+xml" data="RDSC.svg"></object>
   </div>
   <a-scene embedded arjs="sourceType: webcam; debugUIEnabled: true; trackingMethod: best" vr-mode-ui="enabled: false" webxr="optionalFeatures: hit-test">
-    <!-- Camera entity -->
+    <!-- Camera entity with blue box that moves with camera -->
     <a-camera position="0 1.6 0" camera="fov: 80; near: 0.1; far: 100">
       <a-box position="0 -0.5 -0.3" material="color: blue; opacity: 1" scale="0.3 0.3 0.3" visible="true" animation="property: rotation; to: 0 360 0; loop: true; dur: 2000"></a-box>
     </a-camera>
     
-    <!-- World-fixed cube (appears at start, not attached to camera) -->
-    <a-entity position="0 0 -2">
-      <a-box class="world-fixed" material="color: green; opacity: 1" scale="0.3 0.3 0.3" visible="true"></a-box>
-    </a-entity>
+    <!-- Invisible marker for world anchoring that's always active -->
+    <a-anchor hit-testing-enabled="true">
+      <a-box class="world-fixed" position="0 0 -2" material="color: green; opacity: 1" scale="0.3 0.3 0.3" visible="true"></a-box>
+    </a-anchor>
     
     <!-- Marker-based entity (only appears when marker is detected) -->
     <a-marker preset="hiro">
@@ -185,9 +185,18 @@
           console.log('World-fixed cube created');
           console.log('Sphere position:', sphere.getAttribute('position'));
           
-          // Initialize the world-fixed cube
+          // Initialize AR session with location anchor
           if (worldCube) {
-            // Set up world anchoring properties
+            console.log('World-fixed cube initialized');
+            // The cube will now be anchored in world space
+          }
+        });
+        
+        // Listen for the anchor to be established
+        sceneEl.addEventListener('anchorFound', (event) => {
+          console.log('World anchor established', event);
+          const worldCube = sceneEl.querySelector('.world-fixed');
+          if (worldCube) {
             worldCube.setAttribute('visible', 'true');
           }
         });
