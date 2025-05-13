@@ -151,11 +151,15 @@
            animation="property: rotation; to: 0 360 0; loop: true; dur: 2000"></a-box>
   </a-camera>
 
-  <!-- ✅ NEW: World-space cube (independent of camera and marker) -->
-  <a-box id="world-cube" position="0 0 -1" material="color: orange; opacity: 0.8" scale="0.5 0.5 0.5" visible="true"></a-box>
+ <a-box id="world-cube"
+       position="0 0 -1"
+       material="color: orange; opacity: 1"
+       scale="0.5 0.5 0.5"
+       visible="true">
+</a-box>
 
-  <!-- Static object in world space -->
-  <a-box position="0 0 -0.5" material="color: green; opacity: 1" scale="0.3 0.3 0.3" visible="true"></a-box>
+
+
 
   <!-- Marker-based content -->
   <a-marker preset="hiro">
