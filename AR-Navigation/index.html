@@ -141,22 +141,18 @@
     <div id="map"></div>
     <object id="svgObject" type="image/svg+xml" data="RDSC.svg"></object>
   </div>
-  <a-scene embedded arjs="sourceType: webcam; debugUIEnabled: true; trackingMethod: best" vr-mode-ui="enabled: false" webxr="optionalFeatures: hit-test">
-    <!-- Camera entity with blue box that moves with camera -->
-    <a-camera position="0 1.6 0" camera="fov: 80; near: 0.1; far: 100">
-      <a-box position="0 -0.5 -0.3" material="color: blue; opacity: 1" scale="0.3 0.3 0.3" visible="true" animation="property: rotation; to: 0 360 0; loop: true; dur: 2000"></a-box>
-    </a-camera>
-    
-    <!-- Invisible marker for world anchoring that's always active -->
-    <a-anchor hit-testing-enabled="true">
-      <a-box class="world-fixed" position="0 0 -2" material="color: green; opacity: 1" scale="0.3 0.3 0.3" visible="true"></a-box>
-    </a-anchor>
-    
-    <!-- Marker-based entity (only appears when marker is detected) -->
-    <a-marker preset="hiro">
-      <a-sphere position="0.5 0.5 0" radius="0.25" material="color: red; opacity: 1"></a-sphere>
-    </a-marker>
-  </a-scene>
+<a-scene embedded arjs="sourceType: webcam; debugUIEnabled: true; trackingMethod: best" vr-mode-ui="enabled: false" webxr="optionalFeatures: hit-test">
+
+ 
+  <a-box position="0 0 -1" material="color: orange; opacity: 1" scale="0.5 0.5 0.5" visible="true" animation="property: rotation; to: 0 360 0; loop: true; dur: 3000"></a-box>
+
+  
+  <a-marker preset="hiro">
+    <a-sphere position="0.5 0.5 0" radius="0.25" material="color: red; opacity: 1"></a-sphere>
+  </a-marker>
+
+</a-scene>
+
   <script src="svg.js"></script>
   <script src="leaflet.js"></script>
   <script src="MarkerHandler.js"></script>
@@ -179,57 +175,35 @@
           sceneEl.renderer.setSize(window.innerWidth, window.innerHeight);
           sceneEl.renderer.domElement.style.display = 'block';
           const camera = sceneEl.querySelector('a-camera');
-          const worldCube = sceneEl.querySelector('.world-fixed');
+          const cube = sceneEl.querySelector('a-box');
           const sphere = sceneEl.querySelector('a-sphere');
           console.log('Camera position:', camera.getAttribute('position'));
-          console.log('World-fixed cube created');
+          console.log('Cube position:', cube.getAttribute('position'));
           console.log('Sphere position:', sphere.getAttribute('position'));
-          
-          // Initialize AR session with location anchor
-          if (worldCube) {
-            console.log('World-fixed cube initialized');
-            // The cube will now be anchored in world space
-          }
         });
-        
-        // Listen for the anchor to be established
-        sceneEl.addEventListener('anchorFound', (event) => {
-          console.log('World anchor established', event);
-          const worldCube = sceneEl.querySelector('.world-fixed');
-          if (worldCube) {
-            worldCube.setAttribute('visible', 'true');
-          }
-        });
-        
         sceneEl.addEventListener('camera-init', () => {
           console.log('AR session initialized (camera ready)');
           sceneEl.renderer.setSize(window.innerWidth, window.innerHeight);
         });
-        
         sceneEl.addEventListener('arjs-tracking', (event) => {
           console.log('AR.js tracking status:', event.detail);
         });
-        
         sceneEl.addEventListener('realityready', () => {
           console.log('WebXR reality ready');
         });
-        
         sceneEl.addEventListener('realityerror', (err) => {
           console.error('WebXR reality error:', err.detail);
         });
-        
         setTimeout(() => {
           if (!sceneEl.hasLoaded) console.warn('A-Frame scene not loaded after 5s');
         }, 5000);
       }
-      
       const mapDiv = document.getElementById('map');
       if (!mapDiv) {
         console.error('Map div not found');
       } else {
         console.log('Map div found');
       }
-      
       window.addEventListener('resize', () => {
         if (sceneEl) {
           sceneEl.renderer.setSize(window.innerWidth, window.innerHeight);
@@ -238,4 +212,4 @@
     });
   </script>
 </body>
-</html>
+</html> what is this code doing
