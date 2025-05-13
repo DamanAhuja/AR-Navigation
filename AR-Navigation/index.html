@@ -141,7 +141,30 @@
     <div id="map"></div>
     <object id="svgObject" type="image/svg+xml" data="RDSC.svg"></object>
   </div>
-  <a-scene embedded arjs="sourceType: webcam; debugUIEnabled: true; trackingMethod: best" vr-mode-ui="enabled: false" webxr="optionalFeatures: hit-test">
+
+  <!-- ... (Keep everything above this unchanged) ... -->
+<a-scene embedded arjs="sourceType: webcam; debugUIEnabled: true; trackingMethod: best" vr-mode-ui="enabled: false" webxr="optionalFeatures: hit-test">
+  
+  <!-- Camera + UI Cube (unchanged) -->
+  <a-camera position="0 1.6 0" camera="fov: 80; near: 0.1; far: 100">
+    <a-box position="0 -0.5 -0.3" material="color: blue; opacity: 1" scale="0.3 0.3 0.3" visible="true"
+           animation="property: rotation; to: 0 360 0; loop: true; dur: 2000"></a-box>
+  </a-camera>
+
+  <!-- ✅ NEW: World-space cube (independent of camera and marker) -->
+  <a-box id="world-cube" position="0 0 -1" material="color: orange; opacity: 0.8" scale="0.5 0.5 0.5" visible="true"></a-box>
+
+  <!-- Static object in world space -->
+  <a-box position="0 0 -0.5" material="color: green; opacity: 1" scale="0.3 0.3 0.3" visible="true"></a-box>
+
+  <!-- Marker-based content -->
+  <a-marker preset="hiro">
+    <a-sphere position="0.5 0.5 0" radius="0.25" material="color: red; opacity: 1"></a-sphere>
+  </a-marker>
+</a-scene>
+<!-- ... (Keep everything below this unchanged) ... -->
+
+ <!-- <a-scene embedded arjs="sourceType: webcam; debugUIEnabled: true; trackingMethod: best" vr-mode-ui="enabled: false" webxr="optionalFeatures: hit-test">
     <a-camera position="0 1.6 0" camera="fov: 80; near: 0.1; far: 100">
       <a-box position="0 -0.5 -0.3" material="color: blue; opacity: 1" scale="0.3 0.3 0.3" visible="true" animation="property: rotation; to: 0 360 0; loop: true; dur: 2000"></a-box>
     </a-camera>
@@ -149,7 +172,7 @@
     <a-marker preset="hiro">
       <a-sphere position="0.5 0.5 0" radius="0.25" material="color: red; opacity: 1"></a-sphere>
     </a-marker>
-  </a-scene>
+  </a-scene>-->
   <script src="svg.js"></script>
   <script src="leaflet.js"></script>
   <script src="MarkerHandler.js"></script>
