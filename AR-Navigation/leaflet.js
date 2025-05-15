@@ -19,9 +19,9 @@ window.addEventListener("load", () => {
     let userMarker;
     let currentMarkerId = null;
     let pathLayers = [];
-    let arNavigationPoints = [];
-    let currentTargetIndex = 0; // Index of the current target point in arNavigationPoints
-    let navigationArrow = null; // Single AR arrow entity
+    
+    // Add single navigation arrow reference
+    let navigationArrow = null;
 
     function waitForGraph() {
         if (
@@ -49,7 +49,7 @@ window.addEventListener("load", () => {
                 }
             });
 
-            // Render nodes on the map
+            // Render nodes
             nodes.forEach(node => {
                 L.circleMarker([node.y, node.x], {
                     radius: 5,
@@ -59,100 +59,13 @@ window.addEventListener("load", () => {
                 }).addTo(map).bindPopup(node.id);
             });
 
-            // User marker on the map
+            // User marker
             userMarker = L.circleMarker([0, 0], {
                 radius: 8,
                 color: 'red',
                 fillColor: '#f03',
                 fillOpacity: 0.9
             }).addTo(map).bindPopup("You are here");
-
-            // Create a single navigation arrow in the AR scene
-            function createNavigationArrow() {
-                const scene = document.querySelector('a-scene');
-                if (!scene) {
-                    console.error('A-Frame scene not found');
-                    return;
-                }
-
-                navigationArrow = document.createElement('a-entity');
-                navigationArrow.setAttribute('geometry', 'primitive: cone; height: 0.3; radiusBottom: 0.1; radiusTop: 0');
-                navigationArrow.setAttribute('material', 'color: red');
-                // Position the arrow 1 meter in front of the camera (negative Z in A-Frame)
-                navigationArrow.setAttribute('position', '0 0 -1');
-                // Ensure the arrow points along its Y-axis (default for cone)
-                navigationArrow.setAttribute('rotation', '90 0 0'); // Adjust if needed based on cone orientation
-
-                // Add a tick component to update the arrow's rotation
-                navigationArrow.setAttribute('update-direction', '');
-
-                // Custom component to update the arrow's direction
-                AFRAME.registerComponent('update-direction', {
-                    tick: function () {
-                        if (!arNavigationPoints.length || currentTargetIndex >= arNavigationPoints.length) {
-                            // No path or reached the end
-                            this.el.setAttribute('visible', false);
-                            return;
-                        }
-
-                        this.el.setAttribute('visible', true);
-
-                        // Get user's current position
-                        const userPos = currentMarkerId && nodeMap[currentMarkerId]
-                            ? { x: nodeMap[currentMarkerId].x, y: nodeMap[currentMarkerId].y }
-                            : null;
-
-                        if (!userPos) return;
-
-                        // Get the current target point
-                        const targetPoint = arNavigationPoints[currentTargetIndex];
-                        const targetPos = {
-                            x: parseFloat(targetPoint.realWorldMeters.x),
-                            y: parseFloat(targetPoint.realWorldMeters.y)
-                        };
-
-                        // Check distance to the target point (in meters)
-                        const dx = targetPos.x - (userPos.x * 0.04254); // Convert userPos to meters
-                        const dy = targetPos.y - (userPos.y * 0.04254);
-                        const distanceToTarget = Math.hypot(dx, dy);
-
-                        // If user is within 0.5 meters of the target, move to the next point
-                        if (distanceToTarget < 0.5 && currentTargetIndex < arNavigationPoints.length - 1) {
-                            currentTargetIndex++;
-                            console.log(`Moving to next navigation point: ${currentTargetIndex + 1}`);
-                            return;
-                        }
-
-                        // Calculate direction relative to north
-                        if (window.north && typeof window.north.x === "number" && typeof window.north.y === "number") {
-                            const origin = { x: 112.5, y: 225 };
-                            const northVector = {
-                                x: window.north.x - origin.x,
-                                y: origin.y - window.north.y
-                            };
-                            const northMag = Math.hypot(northVector.x, northVector.y);
-                            const northUnit = {
-                                x: northVector.x / northMag,
-                                y: northVector.y / northMag
-                            };
-
-                            const dirUnit = { x: dx / distanceToTarget, y: dy / distanceToTarget };
-                            const dot = dirUnit.x * northUnit.x + dirUnit.y * northUnit.y;
-                            const cross = dirUnit.x * northUnit.y - dirUnit.y * northUnit.x;
-                            const angleRad = Math.atan2(cross, dot);
-                            const angleDeg = (angleRad * 180 / Math.PI + 360) % 360;
-
-                            // Rotate the arrow to point toward the target
-                            // The cone's tip points along its Y-axis after rotation '90 0 0', so we adjust the Y rotation
-                            this.el.setAttribute('rotation', `90 ${-angleDeg} 0`);
-                        } else {
-                            console.warn("window.north not defined, cannot compute direction.");
-                        }
-                    }
-                });
-
-                scene.appendChild(navigationArrow);
-            }
 
             // Expose a global function to go to a destination
             window.goTo = function (targetNodeId) {
@@ -165,17 +78,8 @@ window.addEventListener("load", () => {
                     drawPath(result.path);
                     console.log(`Shortest path from ${currentMarkerId} to ${targetNodeId}:`, result.path);
                     console.log("Total distance:", result.distance, "m");
-                    // Reset navigation to the first point
-                    currentTargetIndex = 0;
-                    // Create the navigation arrow if not already created
-                    if (!navigationArrow) {
-                        createNavigationArrow();
-                    }
                 } else {
                     console.warn("No path found.");
-                    if (navigationArrow) {
-                        navigationArrow.setAttribute('visible', false);
-                    }
                 }
             };
 
@@ -190,16 +94,13 @@ window.addEventListener("load", () => {
                 userMarker.setLatLng([match.y, match.x]);
                 userMarker.openPopup();
                 clearPath();
-                if (navigationArrow) {
-                    navigationArrow.setAttribute('visible', false);
-                }
             };
 
-            // Auto-set initial location and test navigation
+            // Auto-set initial location for testing
             setTimeout(() => window.setUserLocation("Entrance"), 1000);
             setTimeout(() => window.goTo("Entrance2"), 2000);
 
-            // Pathfinding with Dijkstra's algorithm
+            // Pathfinding
             function dijkstra(start, end) {
                 const distances = {}, previous = {}, queue = new Set(Object.keys(graph));
                 for (const node of queue) {
@@ -246,27 +147,30 @@ window.addEventListener("load", () => {
             function clearPath() {
                 pathLayers.forEach(layer => map.removeLayer(layer));
                 pathLayers = [];
-                arNavigationPoints = [];
-                currentTargetIndex = 0;
-                if (navigationArrow) {
-                    navigationArrow.setAttribute('visible', false);
+                
+                // Remove the navigation arrow if it exists
+                const scene = document.querySelector('a-scene');
+                if (scene && navigationArrow) {
+                    scene.removeChild(navigationArrow);
+                    navigationArrow = null;
                 }
             }
 
             function polarToARPosition(distance, angleDegrees) {
+                // Convert polar coordinates to AR scene coordinates
                 const angleRad = angleDegrees * Math.PI / 180;
                 const x = distance * Math.sin(angleRad);
-                const z = -distance * Math.cos(angleRad);
+                const z = -distance * Math.cos(angleRad); // Negative because AR camera looks in -Z
                 return { x, y: 0, z };
             }
 
             function drawPath(path) {
                 clearPath();
-
+    
                 // Array to store all path points with their real-world distances
                 let cumulativePathPoints = [];
                 let cumulativeDistance = 0;
-
+    
                 // First pass: Calculate all path points and their cumulative distances
                 for (let i = 0; i < path.length - 1; i++) {
                     const from = nodeMap[path[i]];
@@ -289,14 +193,14 @@ window.addEventListener("load", () => {
 
                         const latlngs = [];
                         const steps = 20;
-
+                
                         // Start point
                         let prevPoint = { x: from.x, y: from.y };
-                        cumulativePathPoints.push({
-                            point: [from.y, from.x],
-                            distance: cumulativeDistance
+                        cumulativePathPoints.push({ 
+                            point: [from.y, from.x], 
+                            distance: cumulativeDistance 
                         });
-
+                
                         // Calculate points along the Bezier curve
                         for (let t = 1 / steps; t <= 1; t += 1 / steps) {
                             const x = Math.pow(1 - t, 3) * from.x +
@@ -309,14 +213,16 @@ window.addEventListener("load", () => {
                                 3 * (1 - t) * Math.pow(t, 2) * cp2.y +
                                 Math.pow(t, 3) * to.y;
 
+                            // Calculate real distance in scaled pixels
                             const segmentDistance = Math.hypot(x - prevPoint.x, y - prevPoint.y);
                             cumulativeDistance += segmentDistance;
-
-                            cumulativePathPoints.push({
-                                point: [y, x],
-                                distance: cumulativeDistance
+                
+                            // Store this point with its cumulative distance
+                            cumulativePathPoints.push({ 
+                                point: [y, x], 
+                                distance: cumulativeDistance 
                             });
-
+                
                             latlngs.push([y, x]);
                             prevPoint = { x, y };
                         }
@@ -326,32 +232,39 @@ window.addEventListener("load", () => {
                     } else {
                         // For straight line paths
                         const segmentDistance = Math.hypot(to.x - from.x, to.y - from.y);
-
-                        cumulativePathPoints.push({
-                            point: [from.y, from.x],
-                            distance: cumulativeDistance
+                
+                        // Add the starting point of this segment with its cumulative distance
+                        cumulativePathPoints.push({ 
+                            point: [from.y, from.x], 
+                            distance: cumulativeDistance 
                         });
-
+                
+                        // Add the ending point with updated cumulative distance
                         cumulativeDistance += segmentDistance;
-                        cumulativePathPoints.push({
-                            point: [to.y, to.x],
-                            distance: cumulativeDistance
+                        cumulativePathPoints.push({ 
+                            point: [to.y, to.x], 
+                            distance: cumulativeDistance 
                         });
-
+                
                         const straight = L.polyline([[from.y, from.x], [to.y, to.x]], { color: 'green', weight: 4 }).addTo(map);
                         pathLayers.push(straight);
                     }
                 }
-
+    
+                // Convert from pixel distances to meters using the scale factor (0.04254 meters per unit)
                 const meterConversionFactor = 0.04254;
                 const totalDistanceMeters = cumulativeDistance * meterConversionFactor;
                 console.log(`Total path distance: ${totalDistanceMeters.toFixed(2)} meters`);
-
-                // Calculate navigation points at 1-meter intervals (for direction, not display)
-                let nextMarkerDistance = 1.0;
+    
+                // Second pass: Place markers at 1-meter intervals (keep this for visualization on the map)
+                const arPoints = []; // Array to store points for AR
+                let nextMarkerDistance = 1.0; // First marker at 1m
+    
                 while (nextMarkerDistance < totalDistanceMeters) {
+                    // Find the corresponding point at this distance
                     const targetDistancePixels = nextMarkerDistance / meterConversionFactor;
-
+        
+                    // Find the two points that bracket our target distance
                     let beforeIndex = 0;
                     for (let i = 1; i < cumulativePathPoints.length; i++) {
                         if (cumulativePathPoints[i].distance > targetDistancePixels) {
@@ -359,41 +272,65 @@ window.addEventListener("load", () => {
                             break;
                         }
                     }
-
+        
                     const beforePoint = cumulativePathPoints[beforeIndex];
                     const afterPoint = cumulativePathPoints[beforeIndex + 1];
-
+        
+                    // Calculate the fraction of the way between these two points
                     const segmentDistance = afterPoint.distance - beforePoint.distance;
                     const fraction = (targetDistancePixels - beforePoint.distance) / segmentDistance;
-
+        
+                    // Interpolate the position
                     const lat = beforePoint.point[0] + fraction * (afterPoint.point[0] - beforePoint.point[0]);
-                    const lng = beforePoint.point[1] + fraction * (afterPoint.point[1] - beforePoint.point[0]);
-
-                    arNavigationPoints.push({
+                    const lng = beforePoint.point[1] + fraction * (afterPoint.point[1] - beforePoint.point[1]);
+        
+                    // Create a marker at this point
+                    const marker = L.circleMarker([lat, lng], {
+                        radius: 3,
+                        color: 'orange',
+                        fillColor: 'yellow',
+                        fillOpacity: 1
+                    }).addTo(map);
+                    marker.bindPopup(`AR Point: ${nextMarkerDistance.toFixed(1)}m`);
+                    pathLayers.push(marker);
+        
+                    // Store the point for AR use
+                    arPoints.push({
                         position: [lat, lng],
                         distanceMeters: nextMarkerDistance.toFixed(1)
                     });
-
+        
+                    // Move to next meter mark
                     nextMarkerDistance += 1.0;
                 }
-
+    
                 // Convert map coordinates to real-world coordinates in meters
                 const mapToRealWorldMeters = (mapCoords) => {
                     const meterConversionFactor = 0.04254;
-                    const mapY = mapCoords[0];
-                    const mapX = mapCoords[1];
-                    const originPoint = [0, 0];
+        
+                    // Get leaflet map coordinates
+                    const mapY = mapCoords[0]; // y in map space (latitude in leaflet)
+                    const mapX = mapCoords[1]; // x in map space (longitude in leaflet)
+        
+                    // Get the origin point (0,0) in your map
+                    const originPoint = [0, 0]; // Bottom-left corner of the map
+        
+                    // Calculate distance from origin in map units
                     const mapUnitsX = mapX - originPoint[1];
                     const mapUnitsY = mapY - originPoint[0];
+        
+                    // Convert to meters 
                     const metersX = mapUnitsX * meterConversionFactor;
                     const metersY = mapUnitsY * meterConversionFactor;
+        
                     return {
                         x: metersX.toFixed(2),
                         y: metersY.toFixed(2),
                     };
                 };
-
-                arNavigationPoints = arNavigationPoints.map(point => {
+    
+                // Apply transformation to each point and store
+                const arPointsWithRealCoordinates = arPoints.map(point => {
                     const realWorldMeters = mapToRealWorldMeters(point.position);
                     return {
                         mapPosition: point.position,
@@ -401,13 +338,126 @@ window.addEventListener("load", () => {
                         distanceAlongPath: point.distanceMeters
                     };
                 });
-
-                console.log("AR Navigation Points with Real Coordinates (meters):", arNavigationPoints);
+    
+                // Store AR points for later use
+                window.arNavigationPoints = arPointsWithRealCoordinates;
+    
+                // Log the points with their real-world coordinates in meters
+                console.log("AR Navigation Points with Real Coordinates (meters):", arPointsWithRealCoordinates);
+        
+                // Log in a more readable format
                 console.log("=== AR Navigation Points (Real-World Coordinates in meters) ===");
-                arNavigationPoints.forEach((point, index) => {
+                arPointsWithRealCoordinates.forEach((point, index) => {
                     console.log(`Point ${index + 1} (${point.distanceAlongPath}m along path): 
                         X: ${point.realWorldMeters.x}m, Y: ${point.realWorldMeters.y}m from origin`);
                 });
+                console.log("=== Direction Vectors Between Points (Relative to Real North) ===");
+
+                if (window.north && typeof window.north.x === "number" && typeof window.north.y === "number") {
+                    const origin = { x: 112.5, y: 225 };
+                    const northVector = {
+                        x: window.north.x - origin.x,
+                        y: origin.y - window.north.y
+                    };
+
+                    const northMag = Math.hypot(northVector.x, northVector.y);
+                    const northUnit = {
+                        x: northVector.x / northMag,
+                        y: northVector.y / northMag
+                    };
+                    
+                    // Calculate the initial position and direction for the navigation arrow
+                    // Use the first point in the path as the initial position
+                    if (arPointsWithRealCoordinates.length > 0) {
+                        const firstPoint = arPointsWithRealCoordinates[0];
+                        const distanceInMeters = Math.hypot(
+                            parseFloat(firstPoint.realWorldMeters.x), 
+                            parseFloat(firstPoint.realWorldMeters.y)
+                        );
+                        
+                        // Calculate initial angle for the arrow
+                        let initialAngle = 0;
+                        if (arPointsWithRealCoordinates.length > 1) {
+                            const next = arPointsWithRealCoordinates[1];
+                            const dx = parseFloat(next.realWorldMeters.x) - parseFloat(firstPoint.realWorldMeters.x);
+                            const dy = parseFloat(next.realWorldMeters.y) - parseFloat(firstPoint.realWorldMeters.y);
+                            
+                            const dirUnit = { 
+                                x: dx / Math.hypot(dx, dy), 
+                                y: dy / Math.hypot(dx, dy) 
+                            };
+                            
+                            const dot = dirUnit.x * northUnit.x + dirUnit.y * northUnit.y;
+                            const cross = dirUnit.x * northUnit.y - dirUnit.y * northUnit.x;
+                            initialAngle = (Math.atan2(cross, dot) * 180 / Math.PI + 360) % 360;
+                        }
+                        
+                        // Create a single navigation arrow entity
+                        const pos = polarToARPosition(distanceInMeters, initialAngle);
+                        
+                        // Create the navigation arrow once
+                        const scene = document.querySelector('a-scene');
+                        if (scene) {
+                            navigationArrow = document.createElement('a-entity');
+                            navigationArrow.setAttribute('geometry', 'primitive: cone; height: 0.5; radiusBottom: 0.2');
+                            navigationArrow.setAttribute('material', 'color: red');
+                            navigationArrow.setAttribute('position', `${pos.x} 0 ${pos.z}`);
+                            navigationArrow.setAttribute('rotation', `0 ${-initialAngle} 0`);
+                            navigationArrow.setAttribute('id', 'navigation-arrow');
+                            scene.appendChild(navigationArrow);
+                            
+                            // Set up function to update the arrow's position and rotation
+                            window.updateNavigationArrow = function(currentPosition) {
+                                // Find the closest point on the path to the current position
+                                let closestPointIndex = 0;
+                                let minDistance = Infinity;
+                                
+                                for (let i = 0; i < arPointsWithRealCoordinates.length; i++) {
+                                    const point = arPointsWithRealCoordinates[i];
+                                    const distance = Math.hypot(
+                                        currentPosition.x - parseFloat(point.realWorldMeters.x),
+                                        currentPosition.y - parseFloat(point.realWorldMeters.y)
+                                    );
+                                    
+                                    if (distance < minDistance) {
+                                        minDistance = distance;
+                                        closestPointIndex = i;
+                                    }
+                                }
+                                
+                                // Determine the next point to direct the arrow towards
+                                const nextPointIndex = Math.min(closestPointIndex + 1, arPointsWithRealCoordinates.length - 1);
+                                if (nextPointIndex === closestPointIndex) return; // End of path
+                                
+                                const nextPoint = arPointsWithRealCoordinates[nextPointIndex];
+                                
+                                // Calculate direction to the next point
+                                const dx = parseFloat(nextPoint.realWorldMeters.x) - currentPosition.x;
+                                const dy = parseFloat(nextPoint.realWorldMeters.y) - currentPosition.y;
+                                
+                                // Calculate angle relative to north
+                                const dirUnit = { 
+                                    x: dx / Math.hypot(dx, dy), 
+                                    y: dy / Math.hypot(dx, dy) 
+                                };
+                                
+                                const dot = dirUnit.x * northUnit.x + dirUnit.y * northUnit.y;
+                                const cross = dirUnit.x * northUnit.y - dirUnit.y * northUnit.x;
+                                const angleDeg = (Math.atan2(cross, dot) * 180 / Math.PI + 360) % 360;
+                                
+                                // Update the arrow's rotation to point in the new direction
+                                navigationArrow.setAttribute('rotation', `0 ${-angleDeg} 0`);
+                                
+                                // Calculate position for arrow (can be adjusted as needed)
+                                const arrowPos = polarToARPosition(1.0, angleDeg); // Fixed distance of 1 meter ahead
+                                navigationArrow.setAttribute('position', `${arrowPos.x} 0 ${arrowPos.z}`);
+                            };
+                          
+                        }
+                    }
+                } else {
+                    console.warn("window.north is not defined or malformed. Cannot compute direction relative to North.");
+                }
             }
         } else {
             setTimeout(waitForGraph, 100);
