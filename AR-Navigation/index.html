@@ -142,9 +142,20 @@
     <object id="svgObject" type="image/svg+xml" data="RDSC.svg"></object>
   </div>
 
-  <a-scene embedded arjs>
-   <a-box position='0 0.5 -1' material='opacity: 0.5;'></a-box>
-  <a-camera></a-camera>
+  <a-scene arjs="sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix;" vr-mode-ui="enabled: false">
+   
+
+    <!-- Camera entity -->
+    <a-entity camera look-controls position="0 0 0"></a-entity>
+    <a-marker preset="hiro">
+      <a-box position="0 0.1 0" material="color: #00FF00" depth="0.2" height="0.2" width="0.2"></a-box>
+    </a-marker>
+    <a-marker preset="kanji">
+      <a-sphere position="0 0.1 0" radius="0.2" material="color: red"></a-sphere>
+    </a-marker>
+    
+    <!-- Floating Cube without marker -->
+    <a-box position="0 0 -2" color="blue" depth="1" height="1" width="1"></a-box>
   </a-scene>
  <!-- <a-scene embedded arjs="sourceType: webcam; debugUIEnabled: true; trackingMethod: best" vr-mode-ui="enabled: false" webxr="optionalFeatures: hit-test">
     <a-camera position="0 1.6 0" camera="fov: 80; near: 0.1; far: 100">
