@@ -146,7 +146,7 @@
     <!-- create your content here. just a box for now -->
     <a-box position='0 0.5 0' material='opacity: 0.5;'></a-box>
     <!-- define a camera which will move according to the marker position -->
-    <a-marker-camera preset='hiro'></a-marker-camera>
+    <a-camera preset='hiro'></a-camera>
   </a-scene>
  <!-- <a-scene embedded arjs="sourceType: webcam; debugUIEnabled: true; trackingMethod: best" vr-mode-ui="enabled: false" webxr="optionalFeatures: hit-test">
     <a-camera position="0 1.6 0" camera="fov: 80; near: 0.1; far: 100">
@@ -178,7 +178,7 @@
           console.log('A-Frame scene loaded');
           sceneEl.renderer.setSize(window.innerWidth, window.innerHeight);
           sceneEl.renderer.domElement.style.display = 'block';
-          const camera = sceneEl.querySelector('a-marker-camera');
+          const camera = sceneEl.querySelector('a-camera');
           const cube = sceneEl.querySelector('a-box');
           const sphere = sceneEl.querySelector('a-sphere');
           console.log('Camera position:', camera.getAttribute('position'));
