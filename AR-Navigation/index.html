@@ -141,7 +141,14 @@
     <div id="map"></div>
     <object id="svgObject" type="image/svg+xml" data="RDSC.svg"></object>
   </div>
-  <a-scene embedded arjs="sourceType: webcam; debugUIEnabled: true; trackingMethod: best" vr-mode-ui="enabled: false" webxr="optionalFeatures: hit-test">
+
+  <a-scene embedded arjs>
+    <!-- create your content here. just a box for now -->
+    <a-box position='0 0.5 0' material='opacity: 0.5;'></a-box>
+    <!-- define a camera which will move according to the marker position -->
+    <a-marker-camera preset='hiro'></a-marker-camera>
+  </a-scene>
+ <!-- <a-scene embedded arjs="sourceType: webcam; debugUIEnabled: true; trackingMethod: best" vr-mode-ui="enabled: false" webxr="optionalFeatures: hit-test">
     <a-camera position="0 1.6 0" camera="fov: 80; near: 0.1; far: 100">
       <a-box position="0 -0.5 -0.3" material="color: blue; opacity: 1" scale="0.3 0.3 0.3" visible="true" animation="property: rotation; to: 0 360 0; loop: true; dur: 2000"></a-box>
     </a-camera>
@@ -149,7 +156,7 @@
     <a-marker preset="hiro">
       <a-sphere position="0.5 0.5 0" radius="0.25" material="color: blue; opacity: 1"></a-sphere>
     </a-marker>
-  </a-scene>
+  </a-scene>-->
   <script src="svg.js"></script>
   <script src="leaflet.js"></script>
   <script src="MarkerHandler.js"></script>
@@ -171,7 +178,7 @@
           console.log('A-Frame scene loaded');
           sceneEl.renderer.setSize(window.innerWidth, window.innerHeight);
           sceneEl.renderer.domElement.style.display = 'block';
-          const camera = sceneEl.querySelector('a-camera');
+          const camera = sceneEl.querySelector('a-marker-camera');
           const cube = sceneEl.querySelector('a-box');
           const sphere = sceneEl.querySelector('a-sphere');
           console.log('Camera position:', camera.getAttribute('position'));
