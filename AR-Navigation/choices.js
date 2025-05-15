@@ -91,8 +91,37 @@ document.addEventListener("DOMContentLoaded", () => {
 
   checkForExtractedNodes();
 });
-
-window.routeToDestination = function () {
+window.routeToDestination = function() {
+  const dropdown = document.getElementById('destinationDropdown');
+  const selectedValue = dropdown?.value;
+  
+  if (dropdown && selectedValue) {
+    // Trigger path rendering
+    if (typeof window.goTo === 'function') {
+      // Log routing information
+      console.log(`Routing to destination: ${selectedValue}`);
+      window.goTo(selectedValue);
+      
+      // Show the navigation arrow after routing is set
+      const navigationArrow = document.getElementById('navigation-arrow');
+      if (navigationArrow) {
+        navigationArrow.setAttribute('visible', 'true');
+      }
+    } else {
+      console.error("[Routing] goTo function is not defined");
+    }
+    
+    // Reset the dropdown selection
+    const choicesInstance = dropdown.choicesInstance;
+    if (choicesInstance) {
+      choicesInstance.removeActiveItems(); // Clear selection
+      choicesInstance.setChoiceByValue(''); // Reset to placeholder
+    }
+  } else {
+    console.warn('No destination selected');
+  }
+};
+/*window.routeToDestination = function () {
   const dropdown = document.getElementById('destinationDropdown');
   const selectedValue = dropdown?.value;
 
@@ -111,4 +140,4 @@ window.routeToDestination = function () {
       choicesInstance.setChoiceByValue(''); // Reset to placeholder
     }
   }
-};
+};*/
