@@ -22,11 +22,12 @@ window.addEventListener("load", () => {
     let arNavigationPoints = [];
     let currentTargetIndex = 0;
     let navigationArrow = null;
-    let deviceHeading = 0; // Device's heading relative to true north (degrees)
+    let deviceHeading = 0;
+    let smoothedHeading = 0; // Smoothed device heading
+    const smoothingFactor = 0.1; // Smoothing factor for EMA (0 to 1, lower = smoother)
 
     // Handle device orientation to get the phone's heading
     function setupDeviceOrientation() {
-        // iOS 13+ requires permission to access device orientation
         if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
             DeviceOrientationEvent.requestPermission()
                 .then(permissionState => {
@@ -40,7 +41,6 @@ window.addEventListener("load", () => {
                     console.error('Error requesting device orientation permission:', err);
                 });
         } else {
-            // Non-iOS devices or older browsers
             window.addEventListener('deviceorientation', handleDeviceOrientation, true);
         }
     }
@@ -48,16 +48,12 @@ window.addEventListener("load", () => {
     function handleDeviceOrientation(event) {
         let heading = null;
 
-        // iOS provides webkitCompassHeading for true north
         if (event.webkitCompassHeading !== undefined) {
             heading = event.webkitCompassHeading;
         } else if (event.absolute === true && event.alpha !== null) {
-            // Absolute orientation (true north) is available
             heading = event.alpha;
         } else if (event.alpha !== null) {
-            // Relative to magnetic north, apply declination correction
-            // Assuming location is New Delhi, India: declination ~ +0.5° (east) as of May 2025
-            const magneticDeclination = 0.5; // Adjust based on your location
+            const magneticDeclination = 0.5; // New Delhi, May 2025
             heading = (event.alpha + magneticDeclination + 360) % 360;
         } else {
             console.warn('Device orientation not available or incomplete');
@@ -65,10 +61,15 @@ window.addEventListener("load", () => {
         }
 
         deviceHeading = heading;
-        console.log(`Device heading (relative to true north): ${deviceHeading.toFixed(1)}°`);
+
+        // Apply exponential moving average to smooth the heading
+        smoothedHeading = smoothedHeading
+            ? (smoothingFactor * deviceHeading + (1 - smoothingFactor) * smoothedHeading)
+            : deviceHeading;
+
+        console.log(`Device heading (smoothed, relative to true north): ${smoothedHeading.toFixed(1)}°`);
     }
 
-    // Call this immediately to set up the listener
     setupDeviceOrientation();
 
     function waitForGraph() {
@@ -84,7 +85,6 @@ window.addEventListener("load", () => {
 
             nodes.forEach(n => nodeMap[n.id] = n);
 
-            // Build graph
             window.extractedEdges.forEach(edge => {
                 const from = nodeMap[edge.from];
                 const to = nodeMap[edge.to];
@@ -97,7 +97,6 @@ window.addEventListener("load", () => {
                 }
             });
 
-            // Render nodes on the map
             nodes.forEach(node => {
                 L.circleMarker([node.y, node.x], {
                     radius: 5,
@@ -107,7 +106,6 @@ window.addEventListener("load", () => {
                 }).addTo(map).bindPopup(node.id);
             });
 
-            // User marker on the map
             userMarker = L.circleMarker([0, 0], {
                 radius: 8,
                 color: 'red',
@@ -115,63 +113,55 @@ window.addEventListener("load", () => {
                 fillOpacity: 0.9
             }).addTo(map).bindPopup("You are here");
 
-            // Create a single navigation arrow in the AR scene
             function createNavigationArrow() {
                 const scene = document.querySelector('a-scene');
-                if (!scene) {
-                    console.error('A-Frame scene not found');
+                const camera = scene.querySelector('[camera]');
+                if (!scene || !camera) {
+                    console.error('A-Frame scene or camera not found');
                     return;
                 }
 
                 navigationArrow = document.createElement('a-entity');
                 navigationArrow.setAttribute('geometry', 'primitive: cone; height: 0.3; radiusBottom: 0.1; radiusTop: 0');
                 navigationArrow.setAttribute('material', 'color: red');
-                // Position the arrow 1 meter in front of the camera (negative Z in A-Frame)
+                // Position 1 meter in front of the camera (negative Z in A-Frame camera space)
                 navigationArrow.setAttribute('position', '0 0 -1');
-                // Ensure the arrow points along its Y-axis (default for cone)
-                navigationArrow.setAttribute('rotation', '90 0 0');
+                navigationArrow.setAttribute('rotation', '90 0 0'); // Cone points along its Y-axis
 
                 // Add a tick component to update the arrow's rotation
                 navigationArrow.setAttribute('update-direction', '');
 
-                // Custom component to update the arrow's direction
                 AFRAME.registerComponent('update-direction', {
                     tick: function () {
                         if (!arNavigationPoints.length || currentTargetIndex >= arNavigationPoints.length) {
-                            // No path or reached the end
                             this.el.setAttribute('visible', false);
                             return;
                         }
 
                         this.el.setAttribute('visible', true);
 
-                        // Get user's current position
                         const userPos = currentMarkerId && nodeMap[currentMarkerId]
                             ? { x: nodeMap[currentMarkerId].x, y: nodeMap[currentMarkerId].y }
                             : null;
 
                         if (!userPos) return;
 
-                        // Get the current target point
                         const targetPoint = arNavigationPoints[currentTargetIndex];
                         const targetPos = {
                             x: parseFloat(targetPoint.realWorldMeters.x),
                             y: parseFloat(targetPoint.realWorldMeters.y)
                         };
 
-                        // Check distance to the target point (in meters)
-                        const dx = targetPos.x - (userPos.x * 0.04254); // Convert userPos to meters
+                        const dx = targetPos.x - (userPos.x * 0.04254);
                         const dy = targetPos.y - (userPos.y * 0.04254);
                         const distanceToTarget = Math.hypot(dx, dy);
 
-                        // If user is within 0.5 meters of the target, move to the next point
                         if (distanceToTarget < 0.5 && currentTargetIndex < arNavigationPoints.length - 1) {
                             currentTargetIndex++;
                             console.log(`Moving to next navigation point: ${currentTargetIndex + 1}`);
                             return;
                         }
 
-                        // Calculate direction from user to target (in the map's coordinate system)
                         if (window.north && typeof window.north.x === "number" && typeof window.north.y === "number") {
                             const origin = { x: 112.5, y: 225 };
                             const northVector = {
@@ -190,11 +180,10 @@ window.addEventListener("load", () => {
                             const angleRad = Math.atan2(cross, dot);
                             let angleDeg = (angleRad * 180 / Math.PI + 360) % 360;
 
-                            // Adjust for the device's current heading (relative to true north)
-                            angleDeg = (angleDeg - deviceHeading + 360) % 360;
+                            // Adjust for the device's smoothed heading
+                            angleDeg = (angleDeg - smoothedHeading + 360) % 360;
 
-                            // Rotate the arrow to point toward the target
-                            // Cone's tip points along its Y-axis after rotation '90 0 0'
+                            // Apply the rotation (only rotate around Y-axis, ignore camera's pitch/roll)
                             this.el.setAttribute('rotation', `90 ${-angleDeg} 0`);
                         } else {
                             console.warn("window.north not defined, cannot compute direction.");
@@ -202,10 +191,10 @@ window.addEventListener("load", () => {
                     }
                 });
 
-                scene.appendChild(navigationArrow);
+                // Append the arrow as a child of the camera
+                camera.appendChild(navigationArrow);
             }
 
-            // Expose a global function to go to a destination
             window.goTo = function (targetNodeId) {
                 if (!currentMarkerId) {
                     console.warn("Current user location not set.");
@@ -228,7 +217,6 @@ window.addEventListener("load", () => {
                 }
             };
 
-            // Set user's current location and update
             window.setUserLocation = function (markerId) {
                 const match = nodeMap[markerId];
                 if (!match) {
@@ -244,11 +232,9 @@ window.addEventListener("load", () => {
                 }
             };
 
-            // Auto-set initial location and test navigation
             setTimeout(() => window.setUserLocation("Entrance"), 1000);
             setTimeout(() => window.goTo("Entrance2"), 2000);
 
-            // Pathfinding with Dijkstra's algorithm
             function dijkstra(start, end) {
                 const distances = {}, previous = {}, queue = new Set(Object.keys(graph));
                 for (const node of queue) {
