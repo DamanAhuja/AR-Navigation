@@ -23,10 +23,9 @@ window.addEventListener("load", () => {
     let currentTargetIndex = 0;
     let navigationArrow = null;
     let deviceHeading = 0;
-    let smoothedHeading = 0; // Smoothed device heading
-    const smoothingFactor = 0.1; // Smoothing factor for EMA (0 to 1, lower = smoother)
+    let smoothedHeading = 0;
+    const smoothingFactor = 0.1;
 
-    // Handle device orientation to get the phone's heading
     function setupDeviceOrientation() {
         if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
             DeviceOrientationEvent.requestPermission()
@@ -61,8 +60,6 @@ window.addEventListener("load", () => {
         }
 
         deviceHeading = heading;
-
-        // Apply exponential moving average to smooth the heading
         smoothedHeading = smoothedHeading
             ? (smoothingFactor * deviceHeading + (1 - smoothingFactor) * smoothedHeading)
             : deviceHeading;
@@ -124,11 +121,9 @@ window.addEventListener("load", () => {
                 navigationArrow = document.createElement('a-entity');
                 navigationArrow.setAttribute('geometry', 'primitive: cone; height: 0.3; radiusBottom: 0.1; radiusTop: 0');
                 navigationArrow.setAttribute('material', 'color: red');
-                // Position 1 meter in front of the camera (negative Z in A-Frame camera space)
                 navigationArrow.setAttribute('position', '0 0 -1');
-                navigationArrow.setAttribute('rotation', '90 0 0'); // Cone points along its Y-axis
+                navigationArrow.setAttribute('rotation', '90 0 0');
 
-                // Add a tick component to update the arrow's rotation
                 navigationArrow.setAttribute('update-direction', '');
 
                 AFRAME.registerComponent('update-direction', {
@@ -178,20 +173,26 @@ window.addEventListener("load", () => {
                             const dot = dirUnit.x * northUnit.x + dirUnit.y * northUnit.y;
                             const cross = dirUnit.x * northUnit.y - dirUnit.y * northUnit.x;
                             const angleRad = Math.atan2(cross, dot);
-                            let angleDeg = (angleRad * 180 / Math.PI + 360) % 360;
+                            let targetAngleDeg = (angleRad * 180 / Math.PI + 360) % 360;
 
-                            // Adjust for the device's smoothed heading
-                            angleDeg = (angleDeg - smoothedHeading + 360) % 360;
+                            // Log the target direction for debugging
+                            console.log(`Target direction (relative to map north): ${targetAngleDeg.toFixed(1)}°`);
 
-                            // Apply the rotation (only rotate around Y-axis, ignore camera's pitch/roll)
-                            this.el.setAttribute('rotation', `90 ${-angleDeg} 0`);
+                            // Assuming window.north aligns with true north, targetAngleDeg is now relative to true north
+                            // Calculate the relative angle between the device's heading and the target direction
+                            const relativeAngleDeg = (targetAngleDeg - smoothedHeading + 360) % 360;
+
+                            // Log the relative angle for debugging
+                            console.log(`Relative angle (target - device heading): ${relativeAngleDeg.toFixed(1)}°`);
+
+                            // Apply the rotation to the arrow
+                            this.el.setAttribute('rotation', `90 ${-relativeAngleDeg} 0`);
                         } else {
                             console.warn("window.north not defined, cannot compute direction.");
                         }
                     }
                 });
 
-                // Append the arrow as a child of the camera
                 camera.appendChild(navigationArrow);
             }
 
