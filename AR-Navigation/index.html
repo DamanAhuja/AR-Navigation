@@ -143,9 +143,8 @@
   </div>
 
   <a-scene arjs="sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix;" vr-mode-ui="enabled: false">
-  
-    <a-entity id="navigation-arrow" geometry="primitive: cone; height: 0.5; radiusBottom: 0.2" material="color: red" position="0 0 -2" rotation="0 0 0" visible="false"></a-entity>
-    
+   
+
     <!-- Camera entity -->
     <a-entity camera look-controls position="0 0 0"></a-entity>
     <a-marker preset="hiro">
@@ -155,7 +154,8 @@
       <a-sphere position="0 0.1 0" radius="0.2" material="color: red"></a-sphere>
     </a-marker>
     
-    
+    <!-- Floating Cube without marker -->
+    <!--<a-box position="0 0 -2" color="blue" depth="1" height="1" width="1"></a-box>-->
   </a-scene>
  <!-- <a-scene embedded arjs="sourceType: webcam; debugUIEnabled: true; trackingMethod: best" vr-mode-ui="enabled: false" webxr="optionalFeatures: hit-test">
     <a-camera position="0 1.6 0" camera="fov: 80; near: 0.1; far: 100">
@@ -223,28 +223,6 @@
         }
       });
     });
-
-    // Function to handle routing button click
-    function routeToDestination() {
-      const destinationDropdown = document.getElementById('destinationDropdown');
-      if (destinationDropdown && window.goTo) {
-        const selectedDestination = destinationDropdown.value;
-        if (selectedDestination) {
-          console.log(`Routing to destination: ${selectedDestination}`);
-          window.goTo(selectedDestination);
-          
-          // Show the navigation arrow after routing is set
-          const navigationArrow = document.getElementById('navigation-arrow');
-          if (navigationArrow) {
-            navigationArrow.setAttribute('visible', 'true');
-          }
-        } else {
-          console.warn('No destination selected');
-        }
-      } else {
-        console.error('Either destination dropdown not found or goTo function not available');
-      }
-    }
   </script>
 </body>
 </html>
