@@ -26,16 +26,13 @@ window.addEventListener("load", () => {
     let smoothedHeading = 0;
     const smoothingFactor = 0.1;
 
-    // Offset between map's north and true north (in degrees)
-    // If map's north is 45° east of true north, set this to 45
-    const northOffset = 0; // Adjust this based on your map's orientation
-
     function setupDeviceOrientation() {
         if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
             DeviceOrientationEvent.requestPermission()
                 .then(permissionState => {
                     if (permissionState === 'granted') {
                         window.addEventListener('deviceorientation', handleDeviceOrientation, true);
+                        console.log("Device orientation permission granted.");
                     } else {
                         console.warn('Device orientation permission denied');
                     }
@@ -45,19 +42,26 @@ window.addEventListener("load", () => {
                 });
         } else {
             window.addEventListener('deviceorientation', handleDeviceOrientation, true);
+            console.log("Device orientation access does not require permission (non-iOS or older browser).");
         }
     }
 
     function handleDeviceOrientation(event) {
         let heading = null;
+        let headingSource = "unknown";
 
         if (event.webkitCompassHeading !== undefined) {
             heading = event.webkitCompassHeading;
+            headingSource = "webkitCompassHeading (true north)";
         } else if (event.absolute === true && event.alpha !== null) {
             heading = event.alpha;
+            headingSource = "alpha with absolute=true (true north)";
         } else if (event.alpha !== null) {
+            // Fallback to magnetic north with declination correction
             const magneticDeclination = 0.5; // New Delhi, May 2025
             heading = (event.alpha + magneticDeclination + 360) % 360;
+            headingSource = `alpha with magnetic declination=${magneticDeclination}° (corrected to true north)`;
+            console.warn("Device does not provide absolute orientation. Using magnetic north with declination correction, which may be less accurate.");
         } else {
             console.warn('Device orientation not available or incomplete');
             return;
@@ -68,7 +72,7 @@ window.addEventListener("load", () => {
             ? (smoothingFactor * deviceHeading + (1 - smoothingFactor) * smoothedHeading)
             : deviceHeading;
 
-        console.log(`Device heading (smoothed, relative to true north): ${smoothedHeading.toFixed(1)}°`);
+        console.log(`Device heading (smoothed): ${smoothedHeading.toFixed(1)}°, Source: ${headingSource}`);
     }
 
     setupDeviceOrientation();
@@ -173,6 +177,8 @@ window.addEventListener("load", () => {
                                 y: northVector.y / northMag
                             };
 
+                            console.log(`Map north vector (from window.north): x=${northVector.x.toFixed(2)}, y=${northVector.y.toFixed(2)}`);
+
                             const dirUnit = { x: dx / distanceToTarget, y: dy / distanceToTarget };
                             const dot = dirUnit.x * northUnit.x + dirUnit.y * northUnit.y;
                             const cross = dirUnit.x * northUnit.y - dirUnit.y * northUnit.x;
@@ -181,21 +187,17 @@ window.addEventListener("load", () => {
 
                             console.log(`Target direction (relative to map north): ${targetAngleDeg.toFixed(1)}°`);
 
-                            // Adjust for any offset between map north and true north
-                            const realWorldAngleDeg = (targetAngleDeg + northOffset) % 360;
+                            // Since map north is assumed to be true north, targetAngleDeg is also the real-world direction
+                            const realWorldAngleDeg = targetAngleDeg;
 
-                            console.log(`Target direction (relative to true north): ${realWorldAngleDeg.toFixed(1)}°`);
+                            console.log(`Target direction (relative to true north, assuming map north = true north): ${realWorldAngleDeg.toFixed(1)}°`);
 
-                            // Calculate the angle the arrow should point on the screen
-                            // If the target is 90° (east) and the device is facing 0° (north), the arrow should point 90° (right)
-                            // If the device rotates to 90° (east), the arrow should point 0° (forward)
+                            // Calculate the relative angle the arrow should point on the screen
                             const relativeAngleDeg = (realWorldAngleDeg - smoothedHeading + 360) % 360;
 
                             console.log(`Relative angle (after device heading): ${relativeAngleDeg.toFixed(1)}°`);
 
                             // Apply the rotation to the arrow
-                            // The cone's tip points along its Y-axis after rotation '90 0 0'
-                            // In A-Frame, positive Y rotation is clockwise, so we use -relativeAngleDeg
                             this.el.setAttribute('rotation', `90 ${-relativeAngleDeg} 0`);
                         } else {
                             console.warn("window.north not defined, cannot compute direction.");
