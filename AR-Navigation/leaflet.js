@@ -26,6 +26,10 @@ window.addEventListener("load", () => {
     let smoothedHeading = 0;
     const smoothingFactor = 0.1;
 
+    // Offset between map's north and true north (in degrees)
+    // If map's north is 45° east of true north, set this to 45
+    const northOffset = 0; // Adjust this based on your map's orientation
+
     function setupDeviceOrientation() {
         if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
             DeviceOrientationEvent.requestPermission()
@@ -175,17 +179,23 @@ window.addEventListener("load", () => {
                             const angleRad = Math.atan2(cross, dot);
                             let targetAngleDeg = (angleRad * 180 / Math.PI + 360) % 360;
 
-                            // Log the target direction for debugging
                             console.log(`Target direction (relative to map north): ${targetAngleDeg.toFixed(1)}°`);
 
-                            // Assuming window.north aligns with true north, targetAngleDeg is now relative to true north
-                            // Calculate the relative angle between the device's heading and the target direction
-                            const relativeAngleDeg = (targetAngleDeg - smoothedHeading + 360) % 360;
+                            // Adjust for any offset between map north and true north
+                            const realWorldAngleDeg = (targetAngleDeg + northOffset) % 360;
 
-                            // Log the relative angle for debugging
-                            console.log(`Relative angle (target - device heading): ${relativeAngleDeg.toFixed(1)}°`);
+                            console.log(`Target direction (relative to true north): ${realWorldAngleDeg.toFixed(1)}°`);
+
+                            // Calculate the angle the arrow should point on the screen
+                            // If the target is 90° (east) and the device is facing 0° (north), the arrow should point 90° (right)
+                            // If the device rotates to 90° (east), the arrow should point 0° (forward)
+                            const relativeAngleDeg = (realWorldAngleDeg - smoothedHeading + 360) % 360;
+
+                            console.log(`Relative angle (after device heading): ${relativeAngleDeg.toFixed(1)}°`);
 
                             // Apply the rotation to the arrow
+                            // The cone's tip points along its Y-axis after rotation '90 0 0'
+                            // In A-Frame, positive Y rotation is clockwise, so we use -relativeAngleDeg
                             this.el.setAttribute('rotation', `90 ${-relativeAngleDeg} 0`);
                         } else {
                             console.warn("window.north not defined, cannot compute direction.");
