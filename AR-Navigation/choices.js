@@ -91,7 +91,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   checkForExtractedNodes();
 });
-window.routeToDestination = function() {
+/*window.routeToDestination = function() {
   const dropdown = document.getElementById('destinationDropdown');
   const selectedValue = dropdown?.value;
   
@@ -120,8 +120,8 @@ window.routeToDestination = function() {
   } else {
     console.warn('No destination selected');
   }
-};
-/*window.routeToDestination = function () {
+};*/
+window.routeToDestination = function () {
   const dropdown = document.getElementById('destinationDropdown');
   const selectedValue = dropdown?.value;
 
@@ -140,4 +140,4 @@ window.routeToDestination = function() {
       choicesInstance.setChoiceByValue(''); // Reset to placeholder
     }
   }
-};*/
+};
