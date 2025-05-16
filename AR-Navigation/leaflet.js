@@ -160,13 +160,9 @@ window.addEventListener("load", () => {
 
                             console.log(`Target direction (relative to true north, assuming map north = true north): ${realWorldAngleDeg.toFixed(1)}°`);
 
-                            // Calculate the relative angle the arrow should point on the screen
-                            const relativeAngleDeg = (realWorldAngleDeg - smoothedHeading + 360) % 360;
-
-                            console.log(`Relative angle (after camera heading): ${relativeAngleDeg.toFixed(1)}°`);
-
-                            // Apply the rotation to the arrow
-                            this.el.setAttribute('rotation', `90 ${-relativeAngleDeg} 0`);
+                           const relativeAngleDeg = (realWorldAngleDeg - smoothedHeading + 360) % 360;
+                           console.log(`Relative angle (after camera heading): ${relativeAngleDeg.toFixed(1)}°`);
+                           this.el.setAttribute('rotation', `90 ${-relativeAngleDeg} 0`);
                         } else {
                             console.warn("window.north not defined, cannot compute direction.");
                         }
