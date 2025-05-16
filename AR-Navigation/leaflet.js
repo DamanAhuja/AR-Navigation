@@ -22,60 +22,9 @@ window.addEventListener("load", () => {
     let arNavigationPoints = [];
     let currentTargetIndex = 0;
     let navigationArrow = null;
-    let deviceHeading = 0;
+    let cameraHeading = 0;
     let smoothedHeading = 0;
     const smoothingFactor = 0.1;
-
-    function setupDeviceOrientation() {
-        if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
-            DeviceOrientationEvent.requestPermission()
-                .then(permissionState => {
-                    if (permissionState === 'granted') {
-                        window.addEventListener('deviceorientation', handleDeviceOrientation, true);
-                        console.log("Device orientation permission granted.");
-                    } else {
-                        console.warn('Device orientation permission denied');
-                    }
-                })
-                .catch(err => {
-                    console.error('Error requesting device orientation permission:', err);
-                });
-        } else {
-            window.addEventListener('deviceorientation', handleDeviceOrientation, true);
-            console.log("Device orientation access does not require permission (non-iOS or older browser).");
-        }
-    }
-
-    function handleDeviceOrientation(event) {
-        let heading = null;
-        let headingSource = "unknown";
-
-        if (event.webkitCompassHeading !== undefined) {
-            heading = event.webkitCompassHeading;
-            headingSource = "webkitCompassHeading (true north)";
-        } else if (event.absolute === true && event.alpha !== null) {
-            heading = event.alpha;
-            headingSource = "alpha with absolute=true (true north)";
-        } else if (event.alpha !== null) {
-            // Fallback to magnetic north with declination correction
-            const magneticDeclination = 0.5; // New Delhi, May 2025
-            heading = (event.alpha + magneticDeclination + 360) % 360;
-            headingSource = `alpha with magnetic declination=${magneticDeclination}° (corrected to true north)`;
-            console.warn("Device does not provide absolute orientation. Using magnetic north with declination correction, which may be less accurate.");
-        } else {
-            console.warn('Device orientation not available or incomplete');
-            return;
-        }
-
-        deviceHeading = heading;
-        smoothedHeading = smoothedHeading
-            ? (smoothingFactor * deviceHeading + (1 - smoothingFactor) * smoothedHeading)
-            : deviceHeading;
-
-        console.log(`Device heading (smoothed): ${smoothedHeading.toFixed(1)}°, Source: ${headingSource}`);
-    }
-
-    setupDeviceOrientation();
 
     function waitForGraph() {
         if (
@@ -165,6 +114,25 @@ window.addEventListener("load", () => {
                             return;
                         }
 
+                        // Calculate the camera's heading
+                        const direction = new THREE.Vector3();
+                        camera.object3D.getWorldDirection(direction);
+
+                        // Calculate heading (angle from North, where North = -Z in A-Frame)
+                        const headingRadians = Math.atan2(direction.x, direction.z);
+                        let headingDegrees = THREE.MathUtils.radToDeg(headingRadians);
+
+                        // Convert to compass-style heading (0–360, where 0 = North)
+                        headingDegrees = (headingDegrees + 360) % 360;
+
+                        // Apply smoothing to the heading
+                        cameraHeading = headingDegrees;
+                        smoothedHeading = smoothedHeading
+                            ? (smoothingFactor * cameraHeading + (1 - smoothingFactor) * smoothedHeading)
+                            : cameraHeading;
+
+                        console.log(`Camera heading (smoothed): ${smoothedHeading.toFixed(1)}°`);
+
                         if (window.north && typeof window.north.x === "number" && typeof window.north.y === "number") {
                             const origin = { x: 112.5, y: 225 };
                             const northVector = {
@@ -195,7 +163,7 @@ window.addEventListener("load", () => {
                             // Calculate the relative angle the arrow should point on the screen
                             const relativeAngleDeg = (realWorldAngleDeg - smoothedHeading + 360) % 360;
 
-                            console.log(`Relative angle (after device heading): ${relativeAngleDeg.toFixed(1)}°`);
+                            console.log(`Relative angle (after camera heading): ${relativeAngleDeg.toFixed(1)}°`);
 
                             // Apply the rotation to the arrow
                             this.el.setAttribute('rotation', `90 ${-relativeAngleDeg} 0`);
