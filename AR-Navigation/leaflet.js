@@ -24,7 +24,7 @@ window.addEventListener("load", () => {
     let navigationArrow = null;
     let cameraHeading = 0;
     let smoothedHeading = 0;
-    const smoothingFactor = 0.1;
+    const smoothingFactor = 0.3;
 
     function waitForGraph() {
         if (
