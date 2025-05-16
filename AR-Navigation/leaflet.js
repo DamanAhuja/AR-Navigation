@@ -120,7 +120,7 @@ window.addEventListener("load", () => {
 
                         // Calculate heading (angle from North, where North = -Z in A-Frame)
                         const headingRadians = Math.atan2(direction.x, direction.z);
-                        let headingDegrees = THREE.MathUtils.radToDeg(headingRadians);
+                        let headingDegrees = headingRadians * 180 / Math.PI;
 
                         // Convert to compass-style heading (0–360, where 0 = North)
                         headingDegrees = (headingDegrees + 360) % 360;
