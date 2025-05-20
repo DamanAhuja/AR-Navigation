@@ -4,27 +4,23 @@ window.addEventListener("load", () => {
         minZoom: -1
     });
 
-    const imageWidth = 230;
-    const imageHeight = 450;
-    const svgHeight = 450;
+    const imageWidth = 600;
+    const imageHeight = 900;
+    const svgHeight = 900;
     const imageBounds = [[0, 0], [imageHeight, imageWidth]];
     L.imageOverlay('RDSC.jpg', imageBounds).addTo(map);
     map.fitBounds(imageBounds);
 
-    const scaleFactorX = imageWidth / 230;
-    const scaleFactorY = imageHeight / 450;
+    const scaleFactorX = imageWidth / 600;
+    const scaleFactorY = imageHeight / 900;
+    const distanceScaleFactor = 7.4 / 600; // 0.012333 meters per SVG unit
 
     let nodeMap = {};
     let graph = {};
     let userMarker;
     let currentMarkerId = null;
     let pathLayers = [];
-    let arNavigationPoints = [];
-    let currentTargetIndex = 0;
-    let navigationArrow = null;
-    let cameraHeading = 0;
-    let smoothedHeading = 0;
-    const smoothingFactor = 0.1;
+    let currentPath = [];
 
     function waitForGraph() {
         if (
@@ -39,6 +35,7 @@ window.addEventListener("load", () => {
 
             nodes.forEach(n => nodeMap[n.id] = n);
 
+            // Build graph
             window.extractedEdges.forEach(edge => {
                 const from = nodeMap[edge.from];
                 const to = nodeMap[edge.to];
@@ -51,6 +48,7 @@ window.addEventListener("load", () => {
                 }
             });
 
+            // Render nodes
             nodes.forEach(node => {
                 L.circleMarker([node.y, node.x], {
                     radius: 5,
@@ -60,6 +58,7 @@ window.addEventListener("load", () => {
                 }).addTo(map).bindPopup(node.id);
             });
 
+            // User marker
             userMarker = L.circleMarker([0, 0], {
                 radius: 8,
                 color: 'red',
@@ -67,354 +66,116 @@ window.addEventListener("load", () => {
                 fillOpacity: 0.9
             }).addTo(map).bindPopup("You are here");
 
-            function createNavigationArrow() {
-                const scene = document.querySelector('a-scene');
-                const camera = scene.querySelector('[camera]');
-                if (!scene || !camera) {
-                    console.error('A-Frame scene or camera not found');
-                    return;
-                }
-
-                navigationArrow = document.createElement('a-entity');
-                navigationArrow.setAttribute('geometry', 'primitive: cone; height: 0.3; radiusBottom: 0.1; radiusTop: 0');
-                navigationArrow.setAttribute('material', 'color: red');
-                navigationArrow.setAttribute('position', '0 0 -1');
-                navigationArrow.setAttribute('rotation', '90 0 0');
-
-                navigationArrow.setAttribute('update-direction', '');
-
-                AFRAME.registerComponent('update-direction', {
-                    tick: function () {
-                        if (!arNavigationPoints.length || currentTargetIndex >= arNavigationPoints.length) {
-                            this.el.setAttribute('visible', false);
-                            return;
-                        }
-
-                        this.el.setAttribute('visible', true);
-
-                        const userPos = currentMarkerId && nodeMap[currentMarkerId]
-                            ? { x: nodeMap[currentMarkerId].x, y: nodeMap[currentMarkerId].y }
-                            : null;
-
-                        if (!userPos) return;
-
-                        const targetPoint = arNavigationPoints[currentTargetIndex];
-                        const targetPos = {
-                            x: parseFloat(targetPoint.realWorldMeters.x),
-                            y: parseFloat(targetPoint.realWorldMeters.y)
-                        };
-
-                        const dx = targetPos.x - (userPos.x * 0.04254);
-                        const dy = targetPos.y - (userPos.y * 0.04254);
-                        const distanceToTarget = Math.hypot(dx, dy);
-
-                        if (distanceToTarget < 0.5 && currentTargetIndex < arNavigationPoints.length - 1) {
-                            currentTargetIndex++;
-                            console.log(`Moving to next navigation point: ${currentTargetIndex + 1}`);
-                            return;
-                        }
-
-                        // Calculate the camera's heading
-                        const direction = new THREE.Vector3();
-                        camera.object3D.getWorldDirection(direction);
-
-                        // Calculate heading (angle from North, where North = -Z in A-Frame)
-                        const headingRadians = Math.atan2(direction.x, direction.z);
-                        let headingDegrees = headingRadians * 180 / Math.PI;
-
-                        // Convert to compass-style heading (0–360, where 0 = North)
-                        headingDegrees = (headingDegrees + 360) % 360;
-
-                        // Apply smoothing to the heading
-                        cameraHeading = headingDegrees;
-                        smoothedHeading = smoothedHeading
-                            ? (smoothingFactor * cameraHeading + (1 - smoothingFactor) * smoothedHeading)
-                            : cameraHeading;
-
-                        console.log(`Camera heading (smoothed): ${smoothedHeading.toFixed(1)}°`);
-
-                        if (window.north && typeof window.north.x === "number" && typeof window.north.y === "number") {
-                            const origin = { x: 112.5, y: 225 };
-                            const northVector = {
-                                x: window.north.x - origin.x,
-                                y: origin.y - window.north.y
-                            };
-                            const northMag = Math.hypot(northVector.x, northVector.y);
-                            const northUnit = {
-                                x: northVector.x / northMag,
-                                y: northVector.y / northMag
-                            };
-
-                            console.log(`Map north vector (from window.north): x=${northVector.x.toFixed(2)}, y=${northVector.y.toFixed(2)}`);
-
-                            const dirUnit = { x: dx / distanceToTarget, y: dy / distanceToTarget };
-                            const dot = dirUnit.x * northUnit.x + dirUnit.y * northUnit.y;
-                            const cross = dirUnit.x * northUnit.y - dirUnit.y * northUnit.x;
-                            const angleRad = Math.atan2(cross, dot);
-                            let targetAngleDeg = (angleRad * 180 / Math.PI + 360) % 360;
-
-                            console.log(`Target direction (relative to map north): ${targetAngleDeg.toFixed(1)}°`);
-
-                            // Since map north is assumed to be true north, targetAngleDeg is also the real-world direction
-                            const realWorldAngleDeg = targetAngleDeg;
-
-                            console.log(`Target direction (relative to true north, assuming map north = true north): ${realWorldAngleDeg.toFixed(1)}°`);
-
-                           const relativeAngleDeg = (realWorldAngleDeg - smoothedHeading + 360) % 360;
-                           console.log(`Relative angle (after camera heading): ${relativeAngleDeg.toFixed(1)}°`);
-                           this.el.setAttribute('rotation', `90 ${-relativeAngleDeg} 0`);
-                        } else {
-                            console.warn("window.north not defined, cannot compute direction.");
-                        }
-                    }
-                });
-
-                camera.appendChild(navigationArrow);
-            }
-
+            // Expose a global function to go to a destination
             window.goTo = function (targetNodeId) {
                 if (!currentMarkerId) {
                     console.warn("Current user location not set.");
+                    alert("Please scan a marker to determine your position");
                     return;
                 }
-                const result = dijkstra(currentMarkerId, targetNodeId);
-                if (result.path) {
-                    drawPath(result.path);
-                    console.log(`Shortest path from ${currentMarkerId} to ${targetNodeId}:`, result.path);
-                    console.log("Total distance:", result.distance, "m");
-                    currentTargetIndex = 0;
-                    if (!navigationArrow) {
-                        createNavigationArrow();
+                const path = window.findPath(currentMarkerId, targetNodeId);
+                if (path && path.length > 0) {
+                    currentPath = path.map(node => node.id);
+                    drawPath(currentPath);
+                    let totalDistance = 0;
+                    for (let i = 0; i < path.length - 1; i++) {
+                        const from = nodeMap[path[i].id];
+                        const to = nodeMap[path[i + 1].id];
+                        totalDistance += Math.hypot(to.x - from.x, to.y - from.y);
                     }
+                    totalDistance *= distanceScaleFactor;
+                    console.log(`Shortest path from ${currentMarkerId} to ${targetNodeId}:`, path);
+                    console.log("Total distance:", totalDistance.toFixed(2), "m");
                 } else {
                     console.warn("No path found.");
-                    if (navigationArrow) {
-                        navigationArrow.setAttribute('visible', false);
-                    }
+                    alert("No path found to the destination");
                 }
             };
 
+            // Set user's current location and update
             window.setUserLocation = function (markerId) {
                 const match = nodeMap[markerId];
                 if (!match) {
                     console.warn("Marker ID not found:", markerId);
+                    alert("Marker ID not found: " + markerId);
                     return;
                 }
                 currentMarkerId = markerId;
                 userMarker.setLatLng([match.y, match.x]);
                 userMarker.openPopup();
                 clearPath();
-                if (navigationArrow) {
-                    navigationArrow.setAttribute('visible', false);
-                }
             };
 
-            setTimeout(() => window.setUserLocation("Entrance"), 1000);
-            setTimeout(() => window.goTo("Entrance2"), 2000);
-
-            function dijkstra(start, end) {
-                const distances = {}, previous = {}, queue = new Set(Object.keys(graph));
-                for (const node of queue) {
-                    distances[node] = Infinity;
-                    previous[node] = null;
-                }
-                distances[start] = 0;
-
-                while (queue.size > 0) {
-                    let currentNode = null;
-                    let minDistance = Infinity;
-                    for (const node of queue) {
-                        if (distances[node] < minDistance) {
-                            minDistance = distances[node];
-                            currentNode = node;
-                        }
-                    }
-
-                    if (currentNode === end) break;
-                    queue.delete(currentNode);
-
-                    for (const neighbor of graph[currentNode]) {
-                        const alt = distances[currentNode] + neighbor.weight;
-                        if (alt < distances[neighbor.node]) {
-                            distances[neighbor.node] = alt;
-                            previous[neighbor.node] = currentNode;
-                        }
-                    }
-                }
-
-                const path = [];
-                let curr = end;
-                while (curr) {
-                    path.unshift(curr);
-                    curr = previous[curr];
-                }
-
-                return {
-                    distance: (distances[end] * 0.04254).toFixed(2),
-                    path: distances[end] !== Infinity ? path : null
-                };
-            }
-
-            function clearPath() {
-                pathLayers.forEach(layer => map.removeLayer(layer));
-                pathLayers = [];
-                arNavigationPoints = [];
-                currentTargetIndex = 0;
-                if (navigationArrow) {
-                    navigationArrow.setAttribute('visible', false);
-                }
-            }
-
-            function polarToARPosition(distance, angleDegrees) {
-                const angleRad = angleDegrees * Math.PI / 180;
-                const x = distance * Math.sin(angleRad);
-                const z = -distance * Math.cos(angleRad);
-                return { x, y: 0, z };
-            }
-
-            function drawPath(path) {
-                clearPath();
-
-                let cumulativePathPoints = [];
-                let cumulativeDistance = 0;
-
-                for (let i = 0; i < path.length - 1; i++) {
-                    const from = nodeMap[path[i]];
-                    const to = nodeMap[path[i + 1]];
-                    const edge = window.extractedEdges.find(edge =>
-                        (edge.from === from.id && edge.to === to.id) ||
-                        (edge.from === to.id && edge.to === from.id)
-                    );
-
-                    if (edge && edge.controlPoints && edge.controlPoints.length === 2) {
-                        const cp1 = {
-                            x: edge.controlPoints[0].x * scaleFactorX,
-                            y: (svgHeight - edge.controlPoints[0].y) * scaleFactorY
-                        };
-                        const cp2 = {
-                            x: edge.controlPoints[1].x * scaleFactorX,
-                            y: (svgHeight - edge.controlPoints[1].y) * scaleFactorY
-                        };
-
-                        const latlngs = [];
-                        const steps = 20;
-
-                        let prevPoint = { x: from.x, y: from.y };
-                        cumulativePathPoints.push({
-                            point: [from.y, from.x],
-                            distance: cumulativeDistance
-                        });
-
-                        for (let t = 1 / steps; t <= 1; t += 1 / steps) {
-                            const x = Math.pow(1 - t, 3) * from.x +
-                                3 * Math.pow(1 - t, 2) * t * cp1.x +
-                                3 * (1 - t) * Math.pow(t, 2) * cp2.x +
-                                Math.pow(t, 3) * to.x;
-
-                            const y = Math.pow(1 - t, 3) * from.y +
-                                3 * Math.pow(1 - t, 2) * t * cp1.y +
-                                3 * (1 - t) * Math.pow(t, 2) * cp2.y +
-                                Math.pow(t, 3) * to.y;
-
-                            const segmentDistance = Math.hypot(x - prevPoint.x, y - prevPoint.y);
-                            cumulativeDistance += segmentDistance;
-
-                            cumulativePathPoints.push({
-                                point: [y, x],
-                                distance: cumulativeDistance
-                            });
-
-                            latlngs.push([y, x]);
-                            prevPoint = { x, y };
-                        }
-
-                        const curve = L.polyline(latlngs, { color: 'green', weight: 4 }).addTo(map);
-                        pathLayers.push(curve);
-                    } else {
-                        const segmentDistance = Math.hypot(to.x - from.x, to.y - from.y);
-
-                        cumulativePathPoints.push({
-                            point: [from.y, from.x],
-                            distance: cumulativeDistance
-                        });
-
-                        cumulativeDistance += segmentDistance;
-                        cumulativePathPoints.push({
-                            point: [to.y, to.x],
-                            distance: cumulativeDistance
-                        });
-
-                        const straight = L.polyline([[from.y, from.x], [to.y, to.x]], { color: 'green', weight: 4 }).addTo(map);
-                        pathLayers.push(straight);
-                    }
-                }
-
-                const meterConversionFactor = 0.04254;
-                const totalDistanceMeters = cumulativeDistance * meterConversionFactor;
-                console.log(`Total path distance: ${totalDistanceMeters.toFixed(2)} meters`);
-
-                let nextMarkerDistance = 1.0;
-                while (nextMarkerDistance < totalDistanceMeters) {
-                    const targetDistancePixels = nextMarkerDistance / meterConversionFactor;
-
-                    let beforeIndex = 0;
-                    for (let i = 1; i < cumulativePathPoints.length; i++) {
-                        if (cumulativePathPoints[i].distance > targetDistancePixels) {
-                            beforeIndex = i - 1;
-                            break;
-                        }
-                    }
-
-                    const beforePoint = cumulativePathPoints[beforeIndex];
-                    const afterPoint = cumulativePathPoints[beforeIndex + 1];
-
-                    const segmentDistance = afterPoint.distance - beforePoint.distance;
-                    const fraction = (targetDistancePixels - beforePoint.distance) / segmentDistance;
-
-                    const lat = beforePoint.point[0] + fraction * (afterPoint.point[0] - beforePoint.point[0]);
-                    const lng = beforePoint.point[1] + fraction * (afterPoint.point[1] - beforePoint.point[0]);
-
-                    arNavigationPoints.push({
-                        position: [lat, lng],
-                        distanceMeters: nextMarkerDistance.toFixed(1)
-                    });
-
-                    nextMarkerDistance += 1.0;
-                }
-
-                const mapToRealWorldMeters = (mapCoords) => {
-                    const meterConversionFactor = 0.04254;
-                    const mapY = mapCoords[0];
-                    const mapX = mapCoords[1];
-                    const originPoint = [0, 0];
-                    const mapUnitsX = mapX - originPoint[1];
-                    const mapUnitsY = mapY - originPoint[0];
-                    const metersX = mapUnitsX * meterConversionFactor;
-                    const metersY = mapUnitsY * meterConversionFactor;
-                    return {
-                        x: metersX.toFixed(2),
-                        y: metersY.toFixed(2),
-                    };
-                };
-
-                arNavigationPoints = arNavigationPoints.map(point => {
-                    const realWorldMeters = mapToRealWorldMeters(point.position);
-                    return {
-                        mapPosition: point.position,
-                        realWorldMeters: realWorldMeters,
-                        distanceAlongPath: point.distanceMeters
-                    };
-                });
-
-                console.log("AR Navigation Points with Real Coordinates (meters):", arNavigationPoints);
-                console.log("=== AR Navigation Points (Real-World Coordinates in meters) ===");
-                arNavigationPoints.forEach((point, index) => {
-                    console.log(`Point ${index + 1} (${point.distanceAlongPath}m along path): 
-                        X: ${point.realWorldMeters.x}m, Y: ${point.realWorldMeters.y}m from origin`);
-                });
-            }
+            // Expose globals
+            window.nodeMap = nodeMap;
+            window.currentMarkerId = currentMarkerId;
+            window.currentPath = currentPath;
         } else {
             setTimeout(waitForGraph, 100);
+        }
+    }
+
+    function clearPath() {
+        pathLayers.forEach(layer => map.removeLayer(layer));
+        pathLayers = [];
+    }
+
+    function drawPath(path) {
+        clearPath();
+
+        // Add start and end markers
+        const startNode = nodeMap[path[0]];
+        const endNode = nodeMap[path[path.length - 1]];
+        const startMarker = L.circleMarker([startNode.y, startNode.x], {
+            radius: 8,
+            color: 'green',
+            fillColor: 'lightgreen',
+            fillOpacity: 0.9
+        }).addTo(map).bindPopup("Start");
+        const endMarker = L.circleMarker([endNode.y, endNode.x], {
+            radius: 8,
+            color: 'red',
+            fillColor: 'pink',
+            fillOpacity: 0.9
+        }).addTo(map).bindPopup("Destination");
+        pathLayers.push(startMarker, endMarker);
+
+        for (let i = 0; i < path.length - 1; i++) {
+            const from = nodeMap[path[i]];
+            const to = nodeMap[path[i + 1]];
+            const edge = window.extractedEdges.find(edge =>
+                (edge.from === from.id && edge.to === to.id) ||
+                (edge.from === to.id && edge.to === from.id)
+            );
+
+            if (edge && edge.controlPoints && edge.controlPoints.length === 2) {
+                const cp1 = {
+                    x: edge.controlPoints[0].x * scaleFactorX,
+                    y: (svgHeight - edge.controlPoints[0].y) * scaleFactorY
+                };
+                const cp2 = {
+                    x: edge.controlPoints[1].x * scaleFactorX,
+                    y: (svgHeight - edge.controlPoints[1].y) * scaleFactorY
+                };
+                const latlngs = [];
+                const steps = 20;
+                for (let t = 0; t <= 1; t += 1 / steps) {
+                    const x = Math.pow(1 - t, 3) * from.x +
+                        3 * Math.pow(1 - t, 2) * t * cp1.x +
+                        3 * (1 - t) * Math.pow(t, 2) * cp2.x +
+                        Math.pow(t, 3) * to.x;
+                    const y = Math.pow(1 - t, 3) * from.y +
+                        3 * Math.pow(1 - t, 2) * t * cp1.y +
+                        3 * (1 - t) * Math.pow(t, 2) * cp2.y +
+                        Math.pow(t, 3) * to.y;
+                    latlngs.push([y, x]);
+                }
+                const curve = L.polyline(latlngs, { color: 'green', weight: 4 }).addTo(map);
+                pathLayers.push(curve);
+            } else {
+                const straight = L.polyline([[from.y, from.x], [to.y, to.x]], { color: 'green', weight: 4 }).addTo(map);
+                pathLayers.push(straight);
+            }
         }
     }
 
