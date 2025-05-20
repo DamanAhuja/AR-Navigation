@@ -18,7 +18,7 @@
     THREEx.copyElementSizeTo = function(element, targetElement) {
       if (targetElement === document.body) {
         console.log('Prevented AR.js from modifying body style');
-        return; // Do nothing if the target is <body>
+        return;
       }
       targetElement.style.width = element.style.width;
       targetElement.style.height = element.style.height;
@@ -28,7 +28,6 @@
   </script>
   <script src="https://aframe.io/releases/0.8.0/aframe.min.js"></script>
   <script>
-    // Confirm A-Frame version
     console.log('A-Frame version:', AFRAME.version);
     if (typeof AFRAME.registerSystem !== 'function') {
       console.error('AFRAME.registerSystem is not a function. Current A-Frame version:', AFRAME.version);
@@ -43,9 +42,9 @@
   </script>
   <script src="https://jeromeetienne.github.io/AR.js/aframe/build/aframe-ar.js"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
+  <script src="https://cdn.jsdelivr.net/npm/pathfinding@0.12.0/dist/pathfinding-browser.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/choices.js/public/assets/scripts/choices.min.js"></script>
-  <script src="choices.js"></script>
   <style>
     body {
       margin: 0;
@@ -72,7 +71,7 @@
       max-width: 500px;
       margin: 0 auto;
       box-shadow: 0 0 10px rgba(0, 0, 0, 0.25);
-      border: 2px solid red; /* For debugging */
+      border: 2px solid red;
     }
     #destinationDropdown {
       width: 300px;
@@ -143,33 +142,208 @@
   </div>
 
   <a-scene arjs="sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix;" vr-mode-ui="enabled: false">
-   
-
-    <!-- Camera entity -->
-    <a-entity camera look-controls position="0 0 0"></a-entity>
     <a-marker preset="hiro">
       <a-box position="0 0.1 0" material="color: #00FF00" depth="0.2" height="0.2" width="0.2"></a-box>
     </a-marker>
     <a-marker preset="kanji">
       <a-sphere position="0 0.1 0" radius="0.2" material="color: red"></a-sphere>
     </a-marker>
-    
-    <!-- Floating Cube without marker -->
-    <!--<a-box position="0 0 -2" color="blue" depth="1" height="1" width="1"></a-box>-->
+    <a-entity camera look-controls position="0 0 0"></a-entity>
   </a-scene>
- <!-- <a-scene embedded arjs="sourceType: webcam; debugUIEnabled: true; trackingMethod: best" vr-mode-ui="enabled: false" webxr="optionalFeatures: hit-test">
-    <a-camera position="0 1.6 0" camera="fov: 80; near: 0.1; far: 100">
-      <a-box position="0 -0.5 -0.3" material="color: blue; opacity: 1" scale="0.3 0.3 0.3" visible="true" animation="property: rotation; to: 0 360 0; loop: true; dur: 2000"></a-box>
-    </a-camera>
-    <a-box position="0 0 -0.5" material="color: green; opacity: 1" scale="0.3 0.3 0.3" visible="true"></a-box>
-    <a-marker preset="hiro">
-      <a-sphere position="0.5 0.5 0" radius="0.25" material="color: blue; opacity: 1"></a-sphere>
-    </a-marker>
-  </a-scene>-->
+
   <script src="svg.js"></script>
   <script src="leaflet.js"></script>
-  <script src="MarkerHandler.js"></script>
   <script>
+    // Populate dropdown
+    document.getElementById("svgObject").addEventListener("load", function () {
+      setTimeout(() => {
+        const dropdown = document.getElementById('destinationDropdown');
+        if (!window.extractedNodes) {
+          console.error('Nodes not extracted yet');
+          return;
+        }
+        window.extractedNodes.forEach(node => {
+          const option = document.createElement('option');
+          option.value = node.id;
+          option.text = node.label || node.id;
+          dropdown.appendChild(option);
+        });
+        new Choices(dropdown, {
+          searchEnabled: true,
+          placeholderValue: 'Select destination',
+        });
+        console.log('Dropdown populated with nodes');
+      }, 1000);
+    });
+
+    // Pathfinding
+    window.findPath = function(startId, endId) {
+      if (!window.extractedNodes || !window.extractedEdges) {
+        console.error('Nodes or edges not extracted');
+        return [];
+      }
+      const graph = {};
+      window.extractedNodes.forEach(node => {
+        graph[node.id] = [];
+      });
+      window.extractedEdges.forEach(edge => {
+        graph[edge.from].push({ id: edge.to, weight: edge.weight });
+        graph[edge.to].push({ id: edge.from, weight: edge.weight });
+      });
+      const nodeMap = {};
+      window.extractedNodes.forEach((node, idx) => {
+        nodeMap[node.id] = idx;
+      });
+      const grid = new PF.Grid(window.extractedNodes.length, window.extractedNodes.length);
+      window.extractedEdges.forEach(edge => {
+        const fromIdx = nodeMap[edge.from];
+        const toIdx = nodeMap[edge.to];
+        grid.setWalkableAt(fromIdx, toIdx, true);
+      });
+      const finder = new PF.AStarFinder();
+      const pathIndices = finder.findPath(nodeMap[startId], nodeMap[endId], grid);
+      return pathIndices.map(([row, col]) => window.extractedNodes[row]);
+    };
+
+    // Render path in AR with arrows
+    const scaleFactor = 7.4 / 600; // 0.012333 meters per SVG unit
+    function mapSvgToAr(x, y, markerPosition) {
+      return {
+        x: (x - markerPosition.x) * scaleFactor,
+        z: (y - markerPosition.y) * scaleFactor,
+        y: 0
+      };
+    }
+    let pathEntities = [];
+    function renderPathInAr(path, markerId) {
+      pathEntities.forEach(entity => entity.parentNode.removeChild(entity));
+      pathEntities = [];
+
+      const markerNode = window.nodeMap[markerId];
+      if (!markerNode) {
+        console.error(`Marker node ${markerId} not found`);
+        return;
+      }
+
+      const markerEntity = document.querySelector(`a-marker[preset="${markerId}"]`);
+      if (!markerEntity) {
+        console.error(`Marker ${markerId} not found in the scene`);
+        return;
+      }
+
+      for (let i = 0; i < path.length - 1; i++) {
+        const fromNode = window.nodeMap[path[i]];
+        const toNode = window.nodeMap[path[i + 1]];
+        if (!fromNode || !toNode) continue;
+
+        const start = mapSvgToAr(fromNode.x, (900 - fromNode.y) / (900 / 600), markerNode);
+        const end = mapSvgToAr(toNode.x, (900 - toNode.y) / (900 / 600), markerNode);
+
+        const dx = end.x - start.x;
+        const dz = end.z - start.z;
+        const angle = Math.atan2(dz, dx) * (180 / Math.PI);
+
+        const arrow = document.createElement('a-entity');
+        arrow.setAttribute('geometry', {
+          primitive: 'cone',
+          height: 0.3,
+          radiusBottom: 0.1,
+          radiusTop: 0
+        });
+        arrow.setAttribute('material', 'color: blue');
+        arrow.setAttribute('position', `${start.x} 0.1 ${start.z}`);
+        arrow.setAttribute('rotation', `0 ${angle - 90} 0`);
+        arrow.setAttribute('animation', {
+          property: 'scale',
+          to: '1.2 1.2 1.2',
+          dur: 500,
+          dir: 'alternate',
+          loop: true
+        });
+        markerEntity.appendChild(arrow);
+        pathEntities.push(arrow);
+      }
+    }
+
+    // Update arrow orientation based on camera rotation
+    document.querySelector('a-scene').addEventListener('loaded', () => {
+      const camera = document.querySelector('a-entity[camera]');
+      setInterval(() => {
+        if (!window.currentPath || window.currentPath.length < 2 || !currentNodeId) return;
+
+        const currentNode = window.nodeMap[currentNodeId];
+        const nextNodeId = window.currentPath[window.currentPath.indexOf(currentNodeId) + 1];
+        if (!nextNodeId) return;
+        const nextNode = window.nodeMap[nextNodeId];
+
+        const cameraRotation = camera.getAttribute('rotation').y;
+
+        pathEntities.forEach((arrow, idx) => {
+          const fromNode = window.nodeMap[window.currentPath[idx]];
+          const toNode = window.nodeMap[window.currentPath[idx + 1]];
+          if (!fromNode || !toNode) return;
+
+          const markerNode = window.nodeMap[currentNodeId];
+          const start = mapSvgToAr(fromNode.x, (900 - fromNode.y) / (900 / 600), markerNode);
+          const end = mapSvgToAr(toNode.x, (900 - toNode.y) / (900 / 600), markerNode);
+
+          const dx = end.x - start.x;
+          const dz = end.z - start.z;
+          let angle = Math.atan2(dz, dx) * (180 / Math.PI);
+          angle -= cameraRotation;
+          arrow.setAttribute('rotation', `0 ${angle - 90} 0`);
+        });
+      }, 100);
+    });
+
+    // Track user position via markers
+    let currentNodeId = null;
+    const markerToNode = {
+      'hiro': 'node0', // Replace with actual node IDs
+      'kanji': 'node1'
+    };
+    document.querySelector('a-scene').addEventListener('markerFound', (event) => {
+      const markerId = event.target.getAttribute('preset');
+      currentNodeId = markerToNode[markerId];
+      window.setUserLocation(currentNodeId); // Update Leaflet map
+      console.log(`Marker ${markerId} found, user at node ${currentNodeId}`);
+    });
+    document.querySelector('a-scene').addEventListener('markerLost', (event) => {
+      const markerId = event.target.getAttribute('preset');
+      if (currentNodeId === markerToNode[markerId]) {
+        currentNodeId = null;
+        console.log(`Marker ${markerId} lost, user position unknown`);
+      }
+    });
+
+    // Route to destination
+    function routeToDestination() {
+      if (!currentNodeId) {
+        alert('Please scan a marker to determine your position');
+        return;
+      }
+      const destinationId = document.getElementById('destinationDropdown').value;
+      if (!destinationId) {
+        alert('Please select a destination');
+        return;
+      }
+      const path = findPath(currentNodeId, destinationId);
+      if (path.length === 0) {
+        alert('No path found to the destination');
+        return;
+      }
+      const visibleMarker = Object.keys(markerToNode).find(markerId => markerToNode[markerId] === currentNodeId);
+      if (!visibleMarker) {
+        alert('No visible marker to anchor the path');
+        return;
+      }
+      window.currentPath = path.map(node => node.id);
+      window.goTo(destinationId); // Update Leaflet map
+      renderPathInAr(window.currentPath, visibleMarker); // Render in AR
+      console.log(`Path from ${currentNodeId} to ${destinationId}:`, path);
+    }
+
+    // Event listeners for debugging
     const bodyObserver = new MutationObserver((mutations) => {
       mutations.forEach(() => {
         if (document.body.style.marginLeft || document.body.style.width) {
@@ -187,12 +361,6 @@
           console.log('A-Frame scene loaded');
           sceneEl.renderer.setSize(window.innerWidth, window.innerHeight);
           sceneEl.renderer.domElement.style.display = 'block';
-          const camera = sceneEl.querySelector('a-camera');
-          const cube = sceneEl.querySelector('a-box');
-          const sphere = sceneEl.querySelector('a-sphere');
-          console.log('Camera position:', camera.getAttribute('position'));
-          console.log('Cube position:', cube.getAttribute('position'));
-          console.log('Sphere position:', sphere.getAttribute('position'));
         });
         sceneEl.addEventListener('camera-init', () => {
           console.log('AR session initialized (camera ready)');
@@ -210,12 +378,6 @@
         setTimeout(() => {
           if (!sceneEl.hasLoaded) console.warn('A-Frame scene not loaded after 5s');
         }, 5000);
-      }
-      const mapDiv = document.getElementById('map');
-      if (!mapDiv) {
-        console.error('Map div not found');
-      } else {
-        console.log('Map div found');
       }
       window.addEventListener('resize', () => {
         if (sceneEl) {
