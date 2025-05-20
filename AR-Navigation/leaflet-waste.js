@@ -19,52 +19,12 @@ window.addEventListener("load", () => {
     let userMarker;
     let currentMarkerId = null;
     let pathLayers = [];
-    // Keep track of AR objects for cleanup
-    let arPathObjects = [];
-    let arInitialized = false;
-
-    // Flag to indicate if AR is ready
-    window.arReady = false;
-
-    // Initialize AR scene
-    function waitForMindAR(callback) {
-    const check = setInterval(() => {
-        if (window.mindarThree && window.mindarThree.scene) {
-            clearInterval(check);
-            callback();
-        }
-    }, 500);
-
-    // Timeout after 10 seconds
-    setTimeout(() => {
-        clearInterval(check);
-        console.warn("MindAR initialization timed out.");
-    }, 10000);
-}
-
-        
-        // Add an event listener for when AR targets are found
-        document.addEventListener("targetFound", (event) => {
-            const targetIndex = event.detail.targetIndex;
-            console.log(`Target found: ${targetIndex}`);
-            
-            // Make sure the path is visible when a target is found
-            arPathObjects.forEach(obj => {
-                obj.visible = true;
-            });
-        });
-        
-        // Add an event listener for when AR targets are lost
-        document.addEventListener("targetLost", (event) => {
-            const targetIndex = event.detail.targetIndex;
-            console.log(`Target lost: ${targetIndex}`);
-        });
-        
-        arInitialized = true;
-        window.arReady = true;
-        console.log("AR initialized successfully");
-        return true;
-    }
+    let arNavigationPoints = [];
+    let currentTargetIndex = 0;
+    let navigationArrow = null;
+    let cameraHeading = 0;
+    let smoothedHeading = 0;
+    const smoothingFactor = 0.1;
 
     function waitForGraph() {
         if (
@@ -79,7 +39,6 @@ window.addEventListener("load", () => {
 
             nodes.forEach(n => nodeMap[n.id] = n);
 
-            // Build graph
             window.extractedEdges.forEach(edge => {
                 const from = nodeMap[edge.from];
                 const to = nodeMap[edge.to];
@@ -92,7 +51,6 @@ window.addEventListener("load", () => {
                 }
             });
 
-            // Render nodes
             nodes.forEach(node => {
                 L.circleMarker([node.y, node.x], {
                     radius: 5,
@@ -102,7 +60,6 @@ window.addEventListener("load", () => {
                 }).addTo(map).bindPopup(node.id);
             });
 
-            // User marker
             userMarker = L.circleMarker([0, 0], {
                 radius: 8,
                 color: 'red',
@@ -110,25 +67,111 @@ window.addEventListener("load", () => {
                 fillOpacity: 0.9
             }).addTo(map).bindPopup("You are here");
 
-            // Try to initialize AR
-            if (!arInitialized) {
-                // Try to initialize AR now
-                waitForMindAR();
-                
-                // Also set up a periodic check to initialize AR if not ready yet
-                const arCheckInterval = setInterval(() => {
-                    if (!arInitialized) {
-                        if (waitForMindAR()) {
-                            clearInterval(arCheckInterval);
-                            console.log("AR initialized after waiting");
+            function createNavigationArrow() {
+                const scene = document.querySelector('a-scene');
+                const camera = scene.querySelector('[camera]');
+                if (!scene || !camera) {
+                    console.error('A-Frame scene or camera not found');
+                    return;
+                }
+
+                navigationArrow = document.createElement('a-entity');
+                navigationArrow.setAttribute('geometry', 'primitive: cone; height: 0.3; radiusBottom: 0.1; radiusTop: 0');
+                navigationArrow.setAttribute('material', 'color: red');
+                navigationArrow.setAttribute('position', '0 0 -1');
+                navigationArrow.setAttribute('rotation', '90 0 0');
+
+                navigationArrow.setAttribute('update-direction', '');
+
+                AFRAME.registerComponent('update-direction', {
+                    tick: function () {
+                        if (!arNavigationPoints.length || currentTargetIndex >= arNavigationPoints.length) {
+                            this.el.setAttribute('visible', false);
+                            return;
                         }
-                    } else {
-                        clearInterval(arCheckInterval);
+
+                        this.el.setAttribute('visible', true);
+
+                        const userPos = currentMarkerId && nodeMap[currentMarkerId]
+                            ? { x: nodeMap[currentMarkerId].x, y: nodeMap[currentMarkerId].y }
+                            : null;
+
+                        if (!userPos) return;
+
+                        const targetPoint = arNavigationPoints[currentTargetIndex];
+                        const targetPos = {
+                            x: parseFloat(targetPoint.realWorldMeters.x),
+                            y: parseFloat(targetPoint.realWorldMeters.y)
+                        };
+
+                        const dx = targetPos.x - (userPos.x * 0.04254);
+                        const dy = targetPos.y - (userPos.y * 0.04254);
+                        const distanceToTarget = Math.hypot(dx, dy);
+
+                        if (distanceToTarget < 0.5 && currentTargetIndex < arNavigationPoints.length - 1) {
+                            currentTargetIndex++;
+                            console.log(`Moving to next navigation point: ${currentTargetIndex + 1}`);
+                            return;
+                        }
+
+                        // Calculate the camera's heading
+                        const direction = new THREE.Vector3();
+                        camera.object3D.getWorldDirection(direction);
+
+                        // Calculate heading (angle from North, where North = -Z in A-Frame)
+                        const headingRadians = Math.atan2(direction.x, direction.z);
+                        let headingDegrees = headingRadians * 180 / Math.PI;
+
+                        // Convert to compass-style heading (0–360, where 0 = North)
+                        headingDegrees = (headingDegrees + 360) % 360;
+
+                        // Apply smoothing to the heading
+                        cameraHeading = headingDegrees;
+                        smoothedHeading = smoothedHeading
+                            ? (smoothingFactor * cameraHeading + (1 - smoothingFactor) * smoothedHeading)
+                            : cameraHeading;
+
+                        console.log(`Camera heading (smoothed): ${smoothedHeading.toFixed(1)}°`);
+
+                        if (window.north && typeof window.north.x === "number" && typeof window.north.y === "number") {
+                            const origin = { x: 112.5, y: 225 };
+                            const northVector = {
+                                x: window.north.x - origin.x,
+                                y: origin.y - window.north.y
+                            };
+                            const northMag = Math.hypot(northVector.x, northVector.y);
+                            const northUnit = {
+                                x: northVector.x / northMag,
+                                y: northVector.y / northMag
+                            };
+
+                            console.log(`Map north vector (from window.north): x=${northVector.x.toFixed(2)}, y=${northVector.y.toFixed(2)}`);
+
+                            const dirUnit = { x: dx / distanceToTarget, y: dy / distanceToTarget };
+                            const dot = dirUnit.x * northUnit.x + dirUnit.y * northUnit.y;
+                            const cross = dirUnit.x * northUnit.y - dirUnit.y * northUnit.x;
+                            const angleRad = Math.atan2(cross, dot);
+                            let targetAngleDeg = (angleRad * 180 / Math.PI + 360) % 360;
+
+                            console.log(`Target direction (relative to map north): ${targetAngleDeg.toFixed(1)}°`);
+
+                            // Since map north is assumed to be true north, targetAngleDeg is also the real-world direction
+                            const realWorldAngleDeg = targetAngleDeg;
+
+                            console.log(`Target direction (relative to true north, assuming map north = true north): ${realWorldAngleDeg.toFixed(1)}°`);
+
+                           const relativeAngleDeg = (realWorldAngleDeg - smoothedHeading + 360) % 360;
+                           console.log(`Relative angle (after camera heading): ${relativeAngleDeg.toFixed(1)}°`);
+                           this.el.setAttribute('rotation', `90 ${-relativeAngleDeg} 0`);
+                        } else {
+                            console.warn("window.north not defined, cannot compute direction.");
+                        }
                     }
-                }, 1000);
+                });
+
+                camera.appendChild(navigationArrow);
             }
 
-            // Expose a global function to go to a destination
             window.goTo = function (targetNodeId) {
                 if (!currentMarkerId) {
                     console.warn("Current user location not set.");
@@ -137,37 +180,20 @@ window.addEventListener("load", () => {
                 const result = dijkstra(currentMarkerId, targetNodeId);
                 if (result.path) {
                     drawPath(result.path);
-                    
-                    // Try to draw AR path - if AR isn't ready yet, queue it up
-                    if (arInitialized) {
-                        drawARPath(result.path);
-                    } else {
-                        console.log("AR not ready, queueing AR path drawing");
-                        const pathToDisplay = result.path;
-                        const checkARAndDraw = setInterval(() => {
-                            if (arInitialized) {
-                                drawARPath(pathToDisplay);
-                                clearInterval(checkARAndDraw);
-                            }
-                        }, 1000);
-                        
-                        // Stop checking after 10 seconds
-                        setTimeout(() => {
-                            clearInterval(checkARAndDraw);
-                            console.warn("AR initialization timed out");
-                        }, 10000);
-                    }
-                    
                     console.log(`Shortest path from ${currentMarkerId} to ${targetNodeId}:`, result.path);
                     console.log("Total distance:", result.distance, "m");
-                    return result; // Return the result for other uses
+                    currentTargetIndex = 0;
+                    if (!navigationArrow) {
+                        createNavigationArrow();
+                    }
                 } else {
                     console.warn("No path found.");
-                    return null;
+                    if (navigationArrow) {
+                        navigationArrow.setAttribute('visible', false);
+                    }
                 }
             };
 
-            // Set user's current location and update
             window.setUserLocation = function (markerId) {
                 const match = nodeMap[markerId];
                 if (!match) {
@@ -178,14 +204,14 @@ window.addEventListener("load", () => {
                 userMarker.setLatLng([match.y, match.x]);
                 userMarker.openPopup();
                 clearPath();
-                clearARPath();
+                if (navigationArrow) {
+                    navigationArrow.setAttribute('visible', false);
+                }
             };
 
-            // Auto-set initial location for testing
             setTimeout(() => window.setUserLocation("Entrance"), 1000);
             setTimeout(() => window.goTo("Entrance2"), 2000);
 
-            // Pathfinding
             function dijkstra(start, end) {
                 const distances = {}, previous = {}, queue = new Set(Object.keys(graph));
                 for (const node of queue) {
@@ -232,10 +258,25 @@ window.addEventListener("load", () => {
             function clearPath() {
                 pathLayers.forEach(layer => map.removeLayer(layer));
                 pathLayers = [];
+                arNavigationPoints = [];
+                currentTargetIndex = 0;
+                if (navigationArrow) {
+                    navigationArrow.setAttribute('visible', false);
+                }
+            }
+
+            function polarToARPosition(distance, angleDegrees) {
+                const angleRad = angleDegrees * Math.PI / 180;
+                const x = distance * Math.sin(angleRad);
+                const z = -distance * Math.cos(angleRad);
+                return { x, y: 0, z };
             }
 
             function drawPath(path) {
                 clearPath();
+
+                let cumulativePathPoints = [];
+                let cumulativeDistance = 0;
 
                 for (let i = 0; i < path.length - 1; i++) {
                     const from = nodeMap[path[i]];
@@ -257,7 +298,14 @@ window.addEventListener("load", () => {
 
                         const latlngs = [];
                         const steps = 20;
-                        for (let t = 0; t <= 1; t += 1 / steps) {
+
+                        let prevPoint = { x: from.x, y: from.y };
+                        cumulativePathPoints.push({
+                            point: [from.y, from.x],
+                            distance: cumulativeDistance
+                        });
+
+                        for (let t = 1 / steps; t <= 1; t += 1 / steps) {
                             const x = Math.pow(1 - t, 3) * from.x +
                                 3 * Math.pow(1 - t, 2) * t * cp1.x +
                                 3 * (1 - t) * Math.pow(t, 2) * cp2.x +
@@ -268,139 +316,107 @@ window.addEventListener("load", () => {
                                 3 * (1 - t) * Math.pow(t, 2) * cp2.y +
                                 Math.pow(t, 3) * to.y;
 
+                            const segmentDistance = Math.hypot(x - prevPoint.x, y - prevPoint.y);
+                            cumulativeDistance += segmentDistance;
+
+                            cumulativePathPoints.push({
+                                point: [y, x],
+                                distance: cumulativeDistance
+                            });
+
                             latlngs.push([y, x]);
+                            prevPoint = { x, y };
                         }
 
                         const curve = L.polyline(latlngs, { color: 'green', weight: 4 }).addTo(map);
                         pathLayers.push(curve);
                     } else {
+                        const segmentDistance = Math.hypot(to.x - from.x, to.y - from.y);
+
+                        cumulativePathPoints.push({
+                            point: [from.y, from.x],
+                            distance: cumulativeDistance
+                        });
+
+                        cumulativeDistance += segmentDistance;
+                        cumulativePathPoints.push({
+                            point: [to.y, to.x],
+                            distance: cumulativeDistance
+                        });
+
                         const straight = L.polyline([[from.y, from.x], [to.y, to.x]], { color: 'green', weight: 4 }).addTo(map);
                         pathLayers.push(straight);
                     }
                 }
-            }
 
-            // Create Three.js objects for AR path
-            function drawARPath(path) {
-                clearARPath();
-                
-                if (!window.mindarScene) {
-                    console.error("MindAR scene not initialized - cannot draw AR path");
-                    return;
-                }
+                const meterConversionFactor = 0.04254;
+                const totalDistanceMeters = cumulativeDistance * meterConversionFactor;
+                console.log(`Total path distance: ${totalDistanceMeters.toFixed(2)} meters`);
 
-                // Create a group for all path objects
-                const pathGroup = new THREE.Group();
-                window.mindarScene.add(pathGroup);
-                arPathObjects.push(pathGroup);
+                let nextMarkerDistance = 1.0;
+                while (nextMarkerDistance < totalDistanceMeters) {
+                    const targetDistancePixels = nextMarkerDistance / meterConversionFactor;
 
-                // Convert from 2D map coordinates to AR space
-                // This conversion will need tuning based on your scene scale
-                const AR_SCALE = 0.01; // Scale factor to convert from map units to AR units
-                const AR_HEIGHT = 0; // Height above the ground in AR space
-
-                console.log("Drawing AR path with", path.length, "nodes");
-                
-                for (let i = 0; i < path.length - 1; i++) {
-                    const fromNode = nodeMap[path[i]];
-                    const toNode = nodeMap[path[i + 1]];
-                    
-                    // Calculate direction vector
-                    const dirVec = new THREE.Vector3(
-                        toNode.x - fromNode.x,
-                        0,
-                        toNode.y - fromNode.y  // y in 2D becomes z in 3D
-                    );
-                    
-                    // Normalize for direction
-                    dirVec.normalize();
-                    
-                    // Create arrow as cone geometry
-                    const arrowGeometry = new THREE.ConeGeometry(0.03, 0.1, 8);
-                    
-                    // Rotate to point in direction of travel
-                    arrowGeometry.rotateX(Math.PI / 2);
-                    
-                    const arrowMaterial = new THREE.MeshBasicMaterial({ color: 0xffff00 });
-                    const arrow = new THREE.Mesh(arrowGeometry, arrowMaterial);
-                    
-                    // Position at midpoint between nodes
-                    const midpoint = {
-                        x: (fromNode.x + toNode.x) / 2,
-                        y: (fromNode.y + toNode.y) / 2
-                    };
-                    
-                    arrow.position.set(
-                        midpoint.x * AR_SCALE, 
-                        AR_HEIGHT, 
-                        midpoint.y * AR_SCALE
-                    );
-                    
-                    // Make arrow point in the direction of the path
-                    arrow.lookAt(
-                        toNode.x * AR_SCALE,
-                        AR_HEIGHT,
-                        toNode.y * AR_SCALE
-                    );
-                    
-                    // Add to group
-                    pathGroup.add(arrow);
-                    
-                    // Add line between nodes
-                    const lineMaterial = new THREE.LineBasicMaterial({ color: 0x00ff00, linewidth: 3 });
-                    const lineGeometry = new THREE.BufferGeometry().setFromPoints([
-                        new THREE.Vector3(fromNode.x * AR_SCALE, AR_HEIGHT, fromNode.y * AR_SCALE),
-                        new THREE.Vector3(toNode.x * AR_SCALE, AR_HEIGHT, toNode.y * AR_SCALE)
-                    ]);
-                    
-                    const line = new THREE.Line(lineGeometry, lineMaterial);
-                    pathGroup.add(line);
-                }
-                
-                // Make sure the group is visible
-                pathGroup.visible = true;
-                
-                console.log("AR path created with", pathGroup.children.length, "objects");
-            }
-
-            function clearARPath() {
-                if (window.mindarScene) {
-                    arPathObjects.forEach(obj => {
-                        window.mindarScene.remove(obj);
-                        // Properly dispose of geometries and materials
-                        if (obj.children) {
-                            obj.children.forEach(child => {
-                                if (child.geometry) child.geometry.dispose();
-                                if (child.material) child.material.dispose();
-                            });
+                    let beforeIndex = 0;
+                    for (let i = 1; i < cumulativePathPoints.length; i++) {
+                        if (cumulativePathPoints[i].distance > targetDistancePixels) {
+                            beforeIndex = i - 1;
+                            break;
                         }
-                    });
-                }
-                arPathObjects = [];
-            }
+                    }
 
-            // Expose a function to manually initialize AR
-            window.initializeAR = function() {
-                return waitForMindAR();
-            };
-            
-            // Expose a function to check AR status
-            window.checkARStatus = function() {
-                console.log("AR initialized:", arInitialized);
-                console.log("AR ready:", window.arReady);
-                if (window.mindarScene) {
-                    console.log("AR scene exists with", window.mindarScene.children.length, "objects");
-                } else {
-                    console.log("AR scene does not exist");
+                    const beforePoint = cumulativePathPoints[beforeIndex];
+                    const afterPoint = cumulativePathPoints[beforeIndex + 1];
+
+                    const segmentDistance = afterPoint.distance - beforePoint.distance;
+                    const fraction = (targetDistancePixels - beforePoint.distance) / segmentDistance;
+
+                    const lat = beforePoint.point[0] + fraction * (afterPoint.point[0] - beforePoint.point[0]);
+                    const lng = beforePoint.point[1] + fraction * (afterPoint.point[1] - beforePoint.point[0]);
+
+                    arNavigationPoints.push({
+                        position: [lat, lng],
+                        distanceMeters: nextMarkerDistance.toFixed(1)
+                    });
+
+                    nextMarkerDistance += 1.0;
                 }
-                console.log("AR path objects:", arPathObjects.length);
-            };
-            
+
+                const mapToRealWorldMeters = (mapCoords) => {
+                    const meterConversionFactor = 0.04254;
+                    const mapY = mapCoords[0];
+                    const mapX = mapCoords[1];
+                    const originPoint = [0, 0];
+                    const mapUnitsX = mapX - originPoint[1];
+                    const mapUnitsY = mapY - originPoint[0];
+                    const metersX = mapUnitsX * meterConversionFactor;
+                    const metersY = mapUnitsY * meterConversionFactor;
+                    return {
+                        x: metersX.toFixed(2),
+                        y: metersY.toFixed(2),
+                    };
+                };
+
+                arNavigationPoints = arNavigationPoints.map(point => {
+                    const realWorldMeters = mapToRealWorldMeters(point.position);
+                    return {
+                        mapPosition: point.position,
+                        realWorldMeters: realWorldMeters,
+                        distanceAlongPath: point.distanceMeters
+                    };
+                });
+
+                console.log("AR Navigation Points with Real Coordinates (meters):", arNavigationPoints);
+                console.log("=== AR Navigation Points (Real-World Coordinates in meters) ===");
+                arNavigationPoints.forEach((point, index) => {
+                    console.log(`Point ${index + 1} (${point.distanceAlongPath}m along path): 
+                        X: ${point.realWorldMeters.x}m, Y: ${point.realWorldMeters.y}m from origin`);
+                });
+            }
         } else {
             setTimeout(waitForGraph, 100);
         }
     }
-  
-    
+
     waitForGraph();
 });
