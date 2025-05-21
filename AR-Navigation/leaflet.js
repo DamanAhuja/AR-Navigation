@@ -57,7 +57,7 @@ window.addEventListener("load", () => {
             });
 
             // User marker
-            userMarker = L.circleMarker([0, 0], {
+            window.userMarker = L.circleMarker([0, 0], {
                 radius: 8,
                 color: 'red',
                 fillColor: '#f03',
