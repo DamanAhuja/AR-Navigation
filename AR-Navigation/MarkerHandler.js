@@ -14,7 +14,7 @@ document.addEventListener('markerFound', (e) => {
     // Update userPosition in sensors.js
     const match = window.nodeMap[markerId];
     if (match) {
-      window.userPosition = { x: match.x / scaleFactorX, y: svgHeight - (match.y / scaleFactorY) }; // Convert to SVG coordinates
+      //window.userPosition = { x: match.x / scaleFactorX, y: svgHeight - (match.y / scaleFactorY) }; // Convert to SVG coordinates
       window.stepCount = 0; // Reset step count
       console.log('Reset userPosition:', window.userPosition);
     }
