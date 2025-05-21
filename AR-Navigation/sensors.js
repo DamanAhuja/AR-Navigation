@@ -83,7 +83,7 @@ window.addEventListener('deviceorientation', (event) => {
   }
   console.log('Current heading:', currentHeading);
 });
-
+console.log(stepCount);
 // Ensure permissions are requested on button click
 document.addEventListener('DOMContentLoaded', () => {
   console.log('sensors.js loaded, waiting for Go button click');
