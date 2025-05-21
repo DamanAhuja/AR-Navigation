@@ -121,13 +121,22 @@ document.addEventListener("DOMContentLoaded", () => {
     console.warn('No destination selected');
   }
 };*/
-window.routeToDestination = function () {
+window.routeToDestination = async function () {
   const dropdown = document.getElementById('destinationDropdown');
   const selectedValue = dropdown?.value;
 
   if (dropdown && selectedValue) {
+    // Request sensor permissions
+    const permissionsGranted = await window.requestSensorPermissions();
+    if (!permissionsGranted) {
+      console.warn('Sensor permissions not granted, cannot proceed with routing');
+      alert('Please allow sensor permissions to enable navigation.');
+      return;
+    }
+
     // Trigger path rendering
     if (typeof window.goTo === 'function') {
+      console.log(`Routing to destination: ${selectedValue}`);
       window.goTo(selectedValue);
     } else {
       console.error("[Routing] goTo function is not defined");
@@ -139,5 +148,7 @@ window.routeToDestination = function () {
       choicesInstance.removeActiveItems(); // Clear selection
       choicesInstance.setChoiceByValue(''); // Reset to placeholder
     }
+  } else {
+    console.warn('No destination selected');
   }
 };
