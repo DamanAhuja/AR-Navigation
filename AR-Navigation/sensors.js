@@ -44,6 +44,7 @@ function detectStep(accel) {
   const currentTime = Date.now();
   if (magnitude > stepThreshold && currentTime - lastStepTime > minStepInterval) {
     window.stepCount++;
+    console.log(stepCount);
     lastStepTime = currentTime;
     updatePosition();
   }
@@ -84,7 +85,7 @@ window.addEventListener('deviceorientation', (event) => {
   }
   console.log('Current heading:', currentHeading);
 });
-console.log(stepCount);
+
 // Ensure permissions are requested on button click
 document.addEventListener('DOMContentLoaded', () => {
   console.log('sensors.js loaded, waiting for Go button click');
