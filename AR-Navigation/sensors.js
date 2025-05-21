@@ -1,6 +1,6 @@
 // Sensor variables
-let userPosition = { x: 0, y: 0 }; // Current position in SVG coordinates
-let stepCount = 0;
+window.userPosition = { x: 0, y: 0 }; // Current position in SVG coordinates
+window.stepCount = 0;
 let currentHeading = 0;
 const stepLength = 0.7; // Average step length in meters
 let lastStepTime = 0;
@@ -11,24 +11,39 @@ const scaleFactorX = 230 / 230; // From leaflet.js
 const scaleFactorY = 450 / 450; // From leaflet.js
 
 // Request sensor permissions
-async function requestSensorPermissions() {
+window.requestSensorPermissions = async function () {
+  console.log('Attempting to request sensor permissions...');
   try {
     if (typeof DeviceMotionEvent.requestPermission === 'function') {
-      await DeviceMotionEvent.requestPermission();
-      await DeviceOrientationEvent.requestPermission();
-      console.log('Sensor permissions granted');
+      const motionPermission = await DeviceMotionEvent.requestPermission();
+      console.log('DeviceMotionEvent permission:', motionPermission);
+      if (motionPermission !== 'granted') {
+        console.error('DeviceMotionEvent permission denied');
+        return false;
+      }
     }
+    if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+      const orientationPermission = await DeviceOrientationEvent.requestPermission();
+      console.log('DeviceOrientationEvent permission:', orientationPermission);
+      if (orientationPermission !== 'granted') {
+        console.error('DeviceOrientationEvent permission denied');
+        return false;
+      }
+    }
+    console.log('Sensor permissions granted');
+    return true;
   } catch (error) {
     console.error('Sensor permission error:', error);
+    return false;
   }
-}
+};
 
 // Step detection
 function detectStep(accel) {
   const magnitude = Math.sqrt(accel.x ** 2 + accel.y ** 2 + accel.z ** 2);
   const currentTime = Date.now();
   if (magnitude > stepThreshold && currentTime - lastStepTime > minStepInterval) {
-    stepCount++;
+    window.stepCount++;
     lastStepTime = currentTime;
     updatePosition();
   }
@@ -37,18 +52,16 @@ function detectStep(accel) {
 // Update position using PDR
 function updatePosition() {
   const rad = (currentHeading * Math.PI) / 180; // Convert heading to radians
-  // Update position in SVG coordinates (meters to SVG units)
   const svgScale = 10; // Adjust based on your SVG map's scale (e.g., 1 meter = 10 SVG units)
-  userPosition.x += stepLength * Math.sin(rad) * svgScale;
-  userPosition.y += stepLength * Math.cos(rad) * svgScale;
-  console.log('Updated position (SVG coords):', userPosition);
-  updateMapMarker(userPosition);
+  window.userPosition.x += stepLength * Math.sin(rad) * svgScale;
+  window.userPosition.y += stepLength * Math.cos(rad) * svgScale;
+  console.log('Updated position (SVG coords):', window.userPosition);
+  updateMapMarker(window.userPosition);
 }
 
 // Update userMarker on Leaflet map
 function updateMapMarker(position) {
   if (window.userMarker) {
-    // Convert SVG coordinates to Leaflet coordinates (apply leaflet.js scaling)
     const leafletX = position.x * scaleFactorX;
     const leafletY = (svgHeight - position.y) * scaleFactorY;
     window.userMarker.setLatLng([leafletY, leafletX]);
@@ -64,20 +77,24 @@ window.addEventListener('devicemotion', (event) => {
 });
 
 window.addEventListener('deviceorientation', (event) => {
-  // Use north reference from svg.js to align heading
   currentHeading = event.webkitCompassHeading || event.alpha || 0;
   if (window.north) {
-    // Adjust heading relative to SVG map's north (window.north)
-    // This assumes north is at 0° in SVG coordinates; adjust if needed
-    currentHeading = (currentHeading + 360) % 360;
+    currentHeading = (currentHeading + 360) % 360; // Adjust based on window.north if needed
   }
   console.log('Current heading:', currentHeading);
 });
 
-// Trigger permissions on user action (e.g., routeToDestination)
+// Ensure permissions are requested on button click
 document.addEventListener('DOMContentLoaded', () => {
+  console.log('sensors.js loaded, waiting for Go button click');
   const goButton = document.querySelector('#routing-ui button');
   if (goButton) {
-    goButton.addEventListener('click', requestSensorPermissions);
+    console.log('Go button found, attaching event listener');
+    goButton.addEventListener('click', () => {
+      console.log('Go button clicked, requesting permissions');
+      window.requestSensorPermissions();
+    });
+  } else {
+    console.error('Go button not found');
   }
 });
