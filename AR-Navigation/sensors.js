@@ -72,7 +72,8 @@ function updateMapMarker(position) {
 // Sensor event listeners
 window.addEventListener('devicemotion', (event) => {
   if (event.accelerationIncludingGravity) {
-    detectStep(event.accelerationIncludingGravity);
+   // detectStep(event.accelerationIncludingGravity);
+     detectStep(event.acceleration);
   }
 });
 
