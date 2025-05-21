@@ -14,7 +14,7 @@ window.addEventListener("load", () => {
     const scaleFactorX = imageWidth / 230;
     const scaleFactorY = imageHeight / 450;
 
-    let nodeMap = {};
+    window.nodeMap = {};
     let graph = {};
     let userMarker;
     let currentMarkerId = null;
@@ -31,12 +31,12 @@ window.addEventListener("load", () => {
                 y: (svgHeight - n.y) * scaleFactorY
             }));
 
-            nodes.forEach(n => nodeMap[n.id] = n);
+            nodes.forEach(n => window.nodeMap[n.id] = n);
 
             // Build graph
             window.extractedEdges.forEach(edge => {
-                const from = nodeMap[edge.from];
-                const to = nodeMap[edge.to];
+                const from = window.nodeMap[edge.from];
+                const to = window.nodeMap[edge.to];
                 if (from && to) {
                     if (!graph[from.id]) graph[from.id] = [];
                     if (!graph[to.id]) graph[to.id] = [];
@@ -82,7 +82,7 @@ window.addEventListener("load", () => {
 
             // Set user's current location and update
             window.setUserLocation = function (markerId) {
-                const match = nodeMap[markerId];
+                const match = window.nodeMap[markerId];
                 if (!match) {
                     console.warn("Marker ID not found:", markerId);
                     return;
@@ -150,8 +150,8 @@ window.addEventListener("load", () => {
                 clearPath();
 
                 for (let i = 0; i < path.length - 1; i++) {
-                    const from = nodeMap[path[i]];
-                    const to = nodeMap[path[i + 1]];
+                    const from = window.nodeMap[path[i]];
+                    const to = window.nodeMap[path[i + 1]];
                     const edge = window.extractedEdges.find(edge =>
                         (edge.from === from.id && edge.to === to.id) ||
                         (edge.from === to.id && edge.to === from.id)
