@@ -1,10 +1,12 @@
 // Sensor variables
 window.userPosition = { x: 0, y: 0 }; // Current position in SVG coordinates
 window.stepCount = 0;
+let lastMagnitude = 0;
+let isRising = false;
 let currentHeading = 0;
 const stepLength = 0.7; // Average step length in meters
 let lastStepTime = 0;
-const stepThreshold = 5.0; // Acceleration threshold (m/s²)
+const stepThreshold = 2.5; // Acceleration threshold (m/s²)
 const minStepInterval = 300; // Minimum time between steps (ms)
 const svgHeight = 450; // From leaflet.js
 const scaleFactorX = 230 / 230; // From leaflet.js
@@ -38,8 +40,27 @@ window.requestSensorPermissions = async function () {
   }
 };
 
-// Step detection
+
 function detectStep(accel) {
+  const magnitude = Math.sqrt(accel.x ** 2 + accel.y ** 2 + accel.z ** 2);
+  const currentTime = Date.now();
+
+  const rising = magnitude > lastMagnitude;
+
+  if (!rising && isRising && magnitude > stepThreshold && currentTime - lastStepTime > minStepInterval) {
+    // Peak detected
+    window.stepCount++;
+    lastStepTime = currentTime;
+    updatePosition();
+    console.log('Step counted:', window.stepCount);
+  }
+
+  isRising = rising;
+  lastMagnitude = magnitude;
+}
+
+// Step detection
+/*function detectStep(accel) {
   const magnitude = Math.sqrt(accel.x ** 2 + accel.y ** 2 + accel.z ** 2);
   const currentTime = Date.now();
   if (magnitude > stepThreshold && currentTime - lastStepTime > minStepInterval) {
@@ -48,7 +69,7 @@ function detectStep(accel) {
     lastStepTime = currentTime;
     updatePosition();
   }
-}
+}*/
 
 // Update position using PDR
 function updatePosition() {
