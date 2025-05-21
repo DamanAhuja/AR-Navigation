@@ -88,8 +88,8 @@ window.addEventListener("load", () => {
                     return;
                 }
                 currentMarkerId = markerId;
-                userMarker.setLatLng([match.y, match.x]);
-                userMarker.openPopup();
+                window.userMarker.setLatLng([match.y, match.x]);
+                window.userMarker.openPopup();
                 clearPath();
             };
 
