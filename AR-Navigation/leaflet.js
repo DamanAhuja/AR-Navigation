@@ -4,23 +4,21 @@ window.addEventListener("load", () => {
         minZoom: -1
     });
 
-    const imageWidth = 600;
-    const imageHeight = 900;
-    const svgHeight = 900;
+    const imageWidth = 230;
+    const imageHeight = 450;
+    const svgHeight = 450;
     const imageBounds = [[0, 0], [imageHeight, imageWidth]];
     L.imageOverlay('RDSC.jpg', imageBounds).addTo(map);
     map.fitBounds(imageBounds);
 
-    const scaleFactorX = imageWidth / 600;
-    const scaleFactorY = imageHeight / 900;
-    const distanceScaleFactor = 7.4 / 600; // 0.012333 meters per SVG unit
+    const scaleFactorX = imageWidth / 230;
+    const scaleFactorY = imageHeight / 450;
 
     let nodeMap = {};
     let graph = {};
     let userMarker;
     let currentMarkerId = null;
     let pathLayers = [];
-    let currentPath = [];
 
     function waitForGraph() {
         if (
@@ -70,25 +68,15 @@ window.addEventListener("load", () => {
             window.goTo = function (targetNodeId) {
                 if (!currentMarkerId) {
                     console.warn("Current user location not set.");
-                    alert("Please scan a marker to determine your position");
                     return;
                 }
-                const path = window.findPath(currentMarkerId, targetNodeId);
-                if (path && path.length > 0) {
-                    currentPath = path.map(node => node.id);
-                    drawPath(currentPath);
-                    let totalDistance = 0;
-                    for (let i = 0; i < path.length - 1; i++) {
-                        const from = nodeMap[path[i].id];
-                        const to = nodeMap[path[i + 1].id];
-                        totalDistance += Math.hypot(to.x - from.x, to.y - from.y);
-                    }
-                    totalDistance *= distanceScaleFactor;
-                    console.log(`Shortest path from ${currentMarkerId} to ${targetNodeId}:`, path);
-                    console.log("Total distance:", totalDistance.toFixed(2), "m");
+                const result = dijkstra(currentMarkerId, targetNodeId);
+                if (result.path) {
+                    drawPath(result.path);
+                    console.log(`Shortest path from ${currentMarkerId} to ${targetNodeId}:`, result.path);
+                    console.log("Total distance:", result.distance, "m");
                 } else {
                     console.warn("No path found.");
-                    alert("No path found to the destination");
                 }
             };
 
@@ -97,7 +85,6 @@ window.addEventListener("load", () => {
                 const match = nodeMap[markerId];
                 if (!match) {
                     console.warn("Marker ID not found:", markerId);
-                    alert("Marker ID not found: " + markerId);
                     return;
                 }
                 currentMarkerId = markerId;
@@ -106,76 +93,106 @@ window.addEventListener("load", () => {
                 clearPath();
             };
 
-            // Expose globals
-            window.nodeMap = nodeMap;
-            window.currentMarkerId = currentMarkerId;
-            window.currentPath = currentPath;
+            // Auto-set initial location for testing
+            setTimeout(() => window.setUserLocation("Entrance"), 1000);
+            setTimeout(() => window.goTo("Entrance2"), 2000);
+
+            // Pathfinding
+            function dijkstra(start, end) {
+                const distances = {}, previous = {}, queue = new Set(Object.keys(graph));
+                for (const node of queue) {
+                    distances[node] = Infinity;
+                    previous[node] = null;
+                }
+                distances[start] = 0;
+
+                while (queue.size > 0) {
+                    let currentNode = null;
+                    let minDistance = Infinity;
+                    for (const node of queue) {
+                        if (distances[node] < minDistance) {
+                            minDistance = distances[node];
+                            currentNode = node;
+                        }
+                    }
+
+                    if (currentNode === end) break;
+                    queue.delete(currentNode);
+
+                    for (const neighbor of graph[currentNode]) {
+                        const alt = distances[currentNode] + neighbor.weight;
+                        if (alt < distances[neighbor.node]) {
+                            distances[neighbor.node] = alt;
+                            previous[neighbor.node] = currentNode;
+                        }
+                    }
+                }
+
+                const path = [];
+                let curr = end;
+                while (curr) {
+                    path.unshift(curr);
+                    curr = previous[curr];
+                }
+
+                return {
+                    distance: (distances[end] * 0.04254).toFixed(2),
+                    path: distances[end] !== Infinity ? path : null
+                };
+            }
+
+            function clearPath() {
+                pathLayers.forEach(layer => map.removeLayer(layer));
+                pathLayers = [];
+            }
+
+            function drawPath(path) {
+                clearPath();
+
+                for (let i = 0; i < path.length - 1; i++) {
+                    const from = nodeMap[path[i]];
+                    const to = nodeMap[path[i + 1]];
+                    const edge = window.extractedEdges.find(edge =>
+                        (edge.from === from.id && edge.to === to.id) ||
+                        (edge.from === to.id && edge.to === from.id)
+                    );
+
+                    if (edge && edge.controlPoints && edge.controlPoints.length === 2) {
+                        const cp1 = {
+                            x: edge.controlPoints[0].x * scaleFactorX,
+                            y: (svgHeight - edge.controlPoints[0].y) * scaleFactorY
+                        };
+                        const cp2 = {
+                            x: edge.controlPoints[1].x * scaleFactorX,
+                            y: (svgHeight - edge.controlPoints[1].y) * scaleFactorY
+                        };
+
+                        const latlngs = [];
+                        const steps = 20;
+                        for (let t = 0; t <= 1; t += 1 / steps) {
+                            const x = Math.pow(1 - t, 3) * from.x +
+                                3 * Math.pow(1 - t, 2) * t * cp1.x +
+                                3 * (1 - t) * Math.pow(t, 2) * cp2.x +
+                                Math.pow(t, 3) * to.x;
+
+                            const y = Math.pow(1 - t, 3) * from.y +
+                                3 * Math.pow(1 - t, 2) * t * cp1.y +
+                                3 * (1 - t) * Math.pow(t, 2) * cp2.y +
+                                Math.pow(t, 3) * to.y;
+
+                            latlngs.push([y, x]);
+                        }
+
+                        const curve = L.polyline(latlngs, { color: 'green', weight: 4 }).addTo(map);
+                        pathLayers.push(curve);
+                    } else {
+                        const straight = L.polyline([[from.y, from.x], [to.y, to.x]], { color: 'green', weight: 4 }).addTo(map);
+                        pathLayers.push(straight);
+                    }
+                }
+            }
         } else {
             setTimeout(waitForGraph, 100);
-        }
-    }
-
-    function clearPath() {
-        pathLayers.forEach(layer => map.removeLayer(layer));
-        pathLayers = [];
-    }
-
-    function drawPath(path) {
-        clearPath();
-
-        // Add start and end markers
-        const startNode = nodeMap[path[0]];
-        const endNode = nodeMap[path[path.length - 1]];
-        const startMarker = L.circleMarker([startNode.y, startNode.x], {
-            radius: 8,
-            color: 'green',
-            fillColor: 'lightgreen',
-            fillOpacity: 0.9
-        }).addTo(map).bindPopup("Start");
-        const endMarker = L.circleMarker([endNode.y, endNode.x], {
-            radius: 8,
-            color: 'red',
-            fillColor: 'pink',
-            fillOpacity: 0.9
-        }).addTo(map).bindPopup("Destination");
-        pathLayers.push(startMarker, endMarker);
-
-        for (let i = 0; i < path.length - 1; i++) {
-            const from = nodeMap[path[i]];
-            const to = nodeMap[path[i + 1]];
-            const edge = window.extractedEdges.find(edge =>
-                (edge.from === from.id && edge.to === to.id) ||
-                (edge.from === to.id && edge.to === from.id)
-            );
-
-            if (edge && edge.controlPoints && edge.controlPoints.length === 2) {
-                const cp1 = {
-                    x: edge.controlPoints[0].x * scaleFactorX,
-                    y: (svgHeight - edge.controlPoints[0].y) * scaleFactorY
-                };
-                const cp2 = {
-                    x: edge.controlPoints[1].x * scaleFactorX,
-                    y: (svgHeight - edge.controlPoints[1].y) * scaleFactorY
-                };
-                const latlngs = [];
-                const steps = 20;
-                for (let t = 0; t <= 1; t += 1 / steps) {
-                    const x = Math.pow(1 - t, 3) * from.x +
-                        3 * Math.pow(1 - t, 2) * t * cp1.x +
-                        3 * (1 - t) * Math.pow(t, 2) * cp2.x +
-                        Math.pow(t, 3) * to.x;
-                    const y = Math.pow(1 - t, 3) * from.y +
-                        3 * Math.pow(1 - t, 2) * t * cp1.y +
-                        3 * (1 - t) * Math.pow(t, 2) * cp2.y +
-                        Math.pow(t, 3) * to.y;
-                    latlngs.push([y, x]);
-                }
-                const curve = L.polyline(latlngs, { color: 'green', weight: 4 }).addTo(map);
-                pathLayers.push(curve);
-            } else {
-                const straight = L.polyline([[from.y, from.x], [to.y, to.x]], { color: 'green', weight: 4 }).addTo(map);
-                pathLayers.push(straight);
-            }
         }
     }
 
