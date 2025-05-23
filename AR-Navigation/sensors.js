@@ -1,45 +1,61 @@
-// Sensor variables
-window.userPosition = { x: 0, y: 0 }; // Current position in SVG coordinates
+window.userPosition = { x: 0, y: 0 };
 window.stepCount = 0;
 let lastMagnitude = 0;
 let isRising = false;
 let currentHeading = 0;
-const stepLength = 0.7; // Average step length in meters
+const stepLength = 0.7;
 let lastStepTime = 0;
-const stepThreshold = 3.0; // Acceleration threshold (m/s²)
-const minStepInterval = 300; // Minimum time between steps (ms)
-const svgHeight = 450; // From leaflet.js
-const scaleFactorX = 230 / 230; // From leaflet.js
-const scaleFactorY = 450 / 450; // From leaflet.js
+const stepThreshold = 3.0;
+const minStepInterval = 300;
+const svgHeight = 450;
+const scaleFactorX = 230 / 230;
+const scaleFactorY = 450 / 450;
 
-// Request sensor permissions
+// Compute northOffset from window.north relative to map center
+function getNorthOffset() {
+  if (!window.north || typeof window.north.x !== 'number' || typeof window.north.y !== 'number') {
+    console.warn('[Sensors] window.north not defined or invalid, assuming north is up');
+    return 0;
+  }
+  const centerX = 115; // 230 / 2
+  const centerY = 225; // 450 / 2
+  const deltaX = window.north.x - centerX;
+  const deltaY = window.north.y - centerY;
+  // Angle in degrees, 0° is up (SVG y-axis), 90° is right
+  const angle = Math.atan2(deltaX, deltaY) * 180 / Math.PI;
+  console.log('[Sensors] Computed northOffset:', angle, 'degrees');
+  return angle;
+}
+
 window.requestSensorPermissions = async function () {
-  console.log('Attempting to request sensor permissions...');
+  console.log('[Sensors] Attempting to request sensor permissions...');
   try {
     if (typeof DeviceMotionEvent.requestPermission === 'function') {
       const motionPermission = await DeviceMotionEvent.requestPermission();
-      console.log('DeviceMotionEvent permission:', motionPermission);
+      console.log('[Sensors] DeviceMotionEvent permission:', motionPermission);
       if (motionPermission !== 'granted') {
-        console.error('DeviceMotionEvent permission denied');
+        console.error('[Sensors] DeviceMotionEvent permission denied');
+        alert('Motion sensor permission denied. Please allow to enable navigation.');
         return false;
       }
     }
     if (typeof DeviceOrientationEvent.requestPermission === 'function') {
       const orientationPermission = await DeviceOrientationEvent.requestPermission();
-      console.log('DeviceOrientationEvent permission:', orientationPermission);
+      console.log('[Sensors] DeviceOrientationEvent permission:', orientationPermission);
       if (orientationPermission !== 'granted') {
-        console.error('DeviceOrientationEvent permission denied');
+        console.error('[Sensors] DeviceOrientationEvent permission denied');
+        alert('Orientation sensor permission denied. Please allow to enable navigation.');
         return false;
       }
     }
-    console.log('Sensor permissions granted');
+    console.log('[Sensors] Sensor permissions granted');
     return true;
   } catch (error) {
-    console.error('Sensor permission error:', error);
+    console.error('[Sensors] Sensor permission error:', error);
+    alert('Error requesting sensor permissions: ' + error.message);
     return false;
   }
 };
-
 
 function detectStep(accel) {
   const magnitude = Math.sqrt(accel.x ** 2 + accel.y ** 2 + accel.z ** 2);
@@ -48,76 +64,51 @@ function detectStep(accel) {
   const rising = magnitude > lastMagnitude;
 
   if (!rising && isRising && magnitude > stepThreshold && currentTime - lastStepTime > minStepInterval) {
-    // Peak detected
     window.stepCount++;
     lastStepTime = currentTime;
     updatePosition();
-    console.log('Step counted:', window.stepCount);
+    console.log('[Sensors] Step counted:', window.stepCount);
   }
 
   isRising = rising;
   lastMagnitude = magnitude;
 }
 
-// Step detection
-/*function detectStep(accel) {
-  const magnitude = Math.sqrt(accel.x ** 2 + accel.y ** 2 + accel.z ** 2);
-  const currentTime = Date.now();
-  if (magnitude > stepThreshold && currentTime - lastStepTime > minStepInterval) {
-    window.stepCount++;
-    console.log(stepCount);
-    lastStepTime = currentTime;
-    updatePosition();
-  }
-}*/
-
-// Update position using PDR
 function updatePosition() {
-  const rad = (currentHeading * Math.PI) / 180; // Convert heading to radians
-  const svgScale = 10; // Adjust based on your SVG map's scale (e.g., 1 meter = 10 SVG units)
+  const northOffset = getNorthOffset();
+  const adjustedHeading = (currentHeading + northOffset) % 360;
+  const rad = (adjustedHeading * Math.PI) / 180;
+  const svgScale = 10;
   window.userPosition.x += stepLength * Math.sin(rad) * svgScale;
   window.userPosition.y += stepLength * Math.cos(rad) * svgScale;
-  console.log('Updated position (SVG coords):', window.userPosition);
+  console.log('[Sensors] Updated position (SVG coords):', window.userPosition, 'Adjusted heading:', adjustedHeading);
   updateMapMarker(window.userPosition);
 }
 
-// Update userMarker on Leaflet map
 function updateMapMarker(position) {
   if (window.userMarker) {
     const leafletX = position.x * scaleFactorX;
     const leafletY = (svgHeight - position.y) * scaleFactorY;
     window.userMarker.setLatLng([leafletY, leafletX]);
-    console.log('Updated Leaflet marker:', [leafletY, leafletX]);
+    console.log('[Sensors] Updated Leaflet marker:', [leafletY, leafletX]);
+  } else {
+    console.error('[Sensors] userMarker not initialized in updateMapMarker');
   }
 }
 
-// Sensor event listeners
 window.addEventListener('devicemotion', (event) => {
   if (event.accelerationIncludingGravity) {
-   // detectStep(event.accelerationIncludingGravity);
-     detectStep(event.acceleration);
+    detectStep(event.accelerationIncludingGravity);
+  } else {
+    console.warn('[Sensors] No acceleration data available');
   }
 });
 
 window.addEventListener('deviceorientation', (event) => {
   currentHeading = event.webkitCompassHeading || event.alpha || 0;
-  if (window.north) {
-    currentHeading = (currentHeading + 360) % 360; // Adjust based on window.north if needed
-  }
-  console.log('Current heading:', currentHeading);
+  console.log('[Sensors] Current heading:', currentHeading);
 });
 
-// Ensure permissions are requested on button click
 document.addEventListener('DOMContentLoaded', () => {
-  console.log('sensors.js loaded, waiting for Go button click');
-  const goButton = document.querySelector('#routing-ui button');
-  if (goButton) {
-    console.log('Go button found, attaching event listener');
-    goButton.addEventListener('click', () => {
-      console.log('Go button clicked, requesting permissions');
-      window.requestSensorPermissions();
-    });
-  } else {
-    console.error('Go button not found');
-  }
+  console.log('[Sensors] sensors.js loaded');
 });
