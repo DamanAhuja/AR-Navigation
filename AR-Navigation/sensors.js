@@ -2,7 +2,7 @@ window.userPosition = { x: 0, y: 0 };
 window.stepCount = 0;
 let lastMagnitude = 0;
 let isRising = false;
-let currentHeading = 0;
+let cameraHeading = 0;
 const stepLength = 0.7;
 let lastStepTime = 0;
 const stepThreshold = 3.0;
@@ -11,7 +11,6 @@ const svgHeight = 450;
 const scaleFactorX = 230 / 230;
 const scaleFactorY = 450 / 450;
 
-// Compute northOffset from window.north relative to map center
 function getNorthOffset() {
   if (!window.north || typeof window.north.x !== 'number' || typeof window.north.y !== 'number') {
     console.warn('[Sensors] window.north not defined or invalid, assuming north is up');
@@ -21,8 +20,8 @@ function getNorthOffset() {
   const centerY = 225; // 450 / 2
   const deltaX = window.north.x - centerX;
   const deltaY = window.north.y - centerY;
-  // Angle in degrees, 0° is up (SVG y-axis), 90° is right
   const angle = Math.atan2(deltaX, deltaY) * 180 / Math.PI;
+  console.log('[Sensors] window.north:', window.north);
   console.log('[Sensors] Computed northOffset:', angle, 'degrees');
   return angle;
 }
@@ -76,12 +75,13 @@ function detectStep(accel) {
 
 function updatePosition() {
   const northOffset = getNorthOffset();
-  const adjustedHeading = (currentHeading + northOffset) % 360;
+  const adjustedHeading = (cameraHeading + northOffset) % 360;
   const rad = (adjustedHeading * Math.PI) / 180;
   const svgScale = 10;
   window.userPosition.x += stepLength * Math.sin(rad) * svgScale;
-  window.userPosition.y += stepLength * Math.cos(rad) * svgScale;
-  console.log('[Sensors] Updated position (SVG coords):', window.userPosition, 'Adjusted heading:', adjustedHeading);
+  window.userPosition.y -= stepLength * Math.cos(rad) * svgScale;
+  console.log('[Sensors] Camera heading:', cameraHeading, 'Adjusted heading:', adjustedHeading);
+  console.log('[Sensors] Updated position (SVG coords):', window.userPosition);
   updateMapMarker(window.userPosition);
 }
 
@@ -98,18 +98,32 @@ function updateMapMarker(position) {
 
 window.addEventListener('devicemotion', (event) => {
   if (event.accelerationIncludingGravity) {
-    //detectStep(event.accelerationIncludingGravity);
     detectStep(event.acceleration);
   } else {
     console.warn('[Sensors] No acceleration data available');
   }
 });
 
-window.addEventListener('deviceorientation', (event) => {
-  currentHeading = event.webkitCompassHeading || event.alpha || 0;
-  console.log('[Sensors] Current heading:', currentHeading);
-});
+// Update camera heading from A-Frame camera
+function updateCameraHeading() {
+  const camera = document.querySelector('a-camera');
+  if (camera) {
+    const rotation = camera.getAttribute('rotation');
+    if (rotation) {
+      cameraHeading = (rotation.y + 360) % 360; // Normalize to 0-360
+      // Adjust for camera direction: in A-Frame, camera faces -z, so rotation.y is the direction it's pointing
+    } else {
+      console.warn('[Sensors] Camera rotation not available');
+    }
+  } else {
+    console.warn('[Sensors] A-Frame camera not found');
+  }
+}
+
+// Poll for camera heading updates
+setInterval(updateCameraHeading, 100);
 
 document.addEventListener('DOMContentLoaded', () => {
   console.log('[Sensors] sensors.js loaded');
+  updateCameraHeading();
 });
