@@ -98,7 +98,7 @@ function updateMapMarker(position) {
 
 window.addEventListener('devicemotion', (event) => {
   if (event.accelerationIncludingGravity) {
-    detectStep(event.accelerationIncludingGravity);
+    detectStep(event.acceleration);
   } else {
     console.warn('[Sensors] No acceleration data available');
   }
