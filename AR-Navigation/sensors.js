@@ -79,7 +79,7 @@ function updatePosition() {
   const rad = (adjustedHeading * Math.PI) / 180;
   const svgScale = 10;
   window.userPosition.x += stepLength * Math.sin(rad) * svgScale;
-  window.userPosition.y -= stepLength * Math.cos(rad) * svgScale;
+  window.userPosition.y -= stepLength * Math.cos(rad) * svgScale; // Re-add y-inversion for correct mapping
   console.log('[Sensors] Camera heading:', cameraHeading, 'Adjusted heading:', adjustedHeading);
   console.log('[Sensors] Updated position (SVG coords):', window.userPosition);
   updateMapMarker(window.userPosition);
@@ -98,32 +98,35 @@ function updateMapMarker(position) {
 
 window.addEventListener('devicemotion', (event) => {
   if (event.accelerationIncludingGravity) {
-    detectStep(event.acceleration);
+    detectStep(event.accelerationIncludingGravity);
   } else {
     console.warn('[Sensors] No acceleration data available');
   }
 });
 
-// Update camera heading from A-Frame camera
-function updateCameraHeading() {
-  const camera = document.querySelector('a-camera');
-  if (camera) {
-    const rotation = camera.getAttribute('rotation');
-    if (rotation) {
-      cameraHeading = (rotation.y + 360) % 360; // Normalize to 0-360
-      // Adjust for camera direction: in A-Frame, camera faces -z, so rotation.y is the direction it's pointing
-    } else {
-      console.warn('[Sensors] Camera rotation not available');
+// Compute camera heading from deviceorientation
+let alpha = 0, beta = 0, gamma = 0;
+window.addEventListener('deviceorientation', (event) => {
+  if (event.alpha !== null && event.beta !== null && event.gamma !== null) {
+    alpha = event.alpha;
+    beta = event.beta;
+    gamma = event.gamma;
+    // Compute camera heading based on orientation
+    if (Math.abs(beta) > 45) { // Phone is vertical (portrait or landscape)
+      if (Math.abs(gamma) > 45) { // Landscape
+        cameraHeading = (alpha + (gamma > 0 ? 90 : -90)) % 360;
+      } else { // Portrait
+        cameraHeading = alpha;
+      }
+    } else { // Phone is flat
+      cameraHeading = alpha;
     }
-  } else {
-    console.warn('[Sensors] A-Frame camera not found');
+    cameraHeading = (cameraHeading + 360) % 360;
+    console.log('[Sensors] Device orientation - alpha:', alpha, 'beta:', beta, 'gamma:', gamma);
+    console.log('[Sensors] Computed camera heading:', cameraHeading);
   }
-}
-
-// Poll for camera heading updates
-setInterval(updateCameraHeading, 100);
+});
 
 document.addEventListener('DOMContentLoaded', () => {
   console.log('[Sensors] sensors.js loaded');
-  updateCameraHeading();
 });
