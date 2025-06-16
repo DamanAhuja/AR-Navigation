@@ -6,7 +6,8 @@ const NODE_REACHED_THRESHOLD = 5; // Distance in SVG units to consider a node "r
 
 function startNavigation(destinationId) {
   if (!window.setCurrentMarkerId || !window.goTo || !window.nodeMap || !window.userPosition || !window.north) {
-    console.error('[ARNavigation] Required variables not available');
+    console.warn('[ARNavigation] Required variables not available, retrying...');
+    setTimeout(() => startNavigation(destinationId), 100);
     return;
   }
 
