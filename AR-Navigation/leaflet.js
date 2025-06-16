@@ -72,6 +72,16 @@ window.addEventListener("load", () => {
         }
       };
 
+      window.setCurrentMarkerId = function (markerId) {
+        const match = window.nodeMap[markerId];
+        if (!match) {
+          console.warn("Marker ID not found:", markerId);
+          return;
+        }
+        currentMarkerId = markerId;
+        console.log('[Leaflet] Current marker set to:', currentMarkerId);
+      };
+
       window.setUserLocation = function (markerId) {
         const match = window.nodeMap[markerId];
         if (!match) {
@@ -97,6 +107,9 @@ window.addEventListener("load", () => {
         window.userMarker.openPopup();
         clearPath();
       };
+
+      console.log('[Leaflet] Graph ready, nodeMap populated:', Object.keys(window.nodeMap));
+      console.log('[Leaflet] setCurrentMarkerId, setUserLocation, and goTo functions defined');
 
       // REMOVE auto-test calls:
       // setTimeout(() => window.setUserLocation("Entrance"), 1000);
@@ -196,6 +209,7 @@ window.addEventListener("load", () => {
         }
       }
     } else {
+      console.log('[Leaflet] Waiting for extractedNodes and extractedEdges...');
       setTimeout(waitForGraph, 100);
     }
   }
