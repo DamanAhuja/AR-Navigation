@@ -4,6 +4,9 @@ window.addEventListener("load", () => {
         minZoom: -1
     });
 
+    // Expose map globally for sensors.js
+    window.map = map;
+
     const imageWidth = 230;
     const imageHeight = 450;
     const svgHeight = 450;
@@ -16,7 +19,6 @@ window.addEventListener("load", () => {
 
     window.nodeMap = {};
     let graph = {};
-    let userMarker;
     let currentMarkerId = null;
     let pathLayers = [];
 
@@ -56,14 +58,6 @@ window.addEventListener("load", () => {
                 }).addTo(map).bindPopup(node.id);
             });
 
-            // User marker
-            window.userMarker = L.circleMarker([0, 0], {
-                radius: 8,
-                color: 'red',
-                fillColor: '#f03',
-                fillOpacity: 0.9
-            }).addTo(map).bindPopup("You are here");
-
             // Expose a global function to go to a destination
             window.goTo = function (targetNodeId) {
                 if (!currentMarkerId) {
@@ -80,22 +74,10 @@ window.addEventListener("load", () => {
                 }
             };
 
-            // Set user's current location and update
-            window.setUserLocation = function (markerId) {
-                const match = window.nodeMap[markerId];
-                if (!match) {
-                    console.warn("Marker ID not found:", markerId);
-                    return;
-                }
+            // Set currentMarkerId when location is set
+            window.setCurrentMarkerId = function (markerId) {
                 currentMarkerId = markerId;
-                window.userMarker.setLatLng([match.y, match.x]);
-                window.userMarker.openPopup();
-                clearPath();
             };
-
-            // Auto-set initial location for testing
-            setTimeout(() => window.setUserLocation("Entrance"), 1000);
-            setTimeout(() => window.goTo("Entrance2"), 2000);
 
             // Pathfinding
             function dijkstra(start, end) {
