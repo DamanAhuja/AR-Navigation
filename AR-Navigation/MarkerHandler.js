@@ -1,22 +1,39 @@
-document.addEventListener('markerFound', (e) => {
-  const marker = e.target;
-  const preset = marker.getAttribute('preset'); // e.g., "hiro" or "kanji"
-  const svgNodes = window.extractedNodes || [];
-  let markerId;
+let markerId = null;
 
-  // Map preset to node ID
-  if (preset === 'hiro') markerId = svgNodes[0]?.id; // e.g., "Entrance"
-  else if (preset === 'kanji') markerId = svgNodes[1]?.id; // e.g., "Entrance2"
-  console.log("Detected marker:", preset, "-> Marker ID:", markerId);
-
-  if (markerId && typeof window.setUserLocation === 'function') {
+function checkReady() {
+  if (
+    markerId &&
+    typeof window.setUserLocation === 'function' &&
+    window.nodeMap &&
+    window.nodeMap[markerId] &&
+    window.extractedNodes &&
+    window.extractedNodes.length > 0
+  ) {
     window.setUserLocation(markerId);
-    // Update userPosition in sensors.js
-    const match = window.nodeMap[markerId];
-    if (match) {
-      window.userPosition = { x: match.x / scaleFactorX, y: svgHeight - (match.y / scaleFactorY) }; // Convert to SVG coordinates
-      window.stepCount = 0; // Reset step count
-      console.log('Reset userPosition:', window.userPosition);
-    }
+    console.log('[MarkerHandler] Set user location to marker ID:', markerId);
+  } else {
+    console.warn('[MarkerHandler] Waiting for dependencies (nodeMap, extractedNodes, setUserLocation)...');
+    setTimeout(checkReady, 100);
   }
+}
+
+document.querySelectorAll('a-marker').forEach(marker => {
+  marker.addEventListener('markerFound', (e) => {
+    const preset = marker.getAttribute('preset');
+    const svgNodes = window.extractedNodes || [];
+    let newMarkerId;
+
+    if (preset === 'hiro') newMarkerId = svgNodes[0]?.id; // e.g., "Entrance"
+    else if (preset === 'kanji') newMarkerId = svgNodes[1]?.id; // e.g., "Entrance2"
+
+    if (newMarkerId && newMarkerId !== markerId) {
+      markerId = newMarkerId;
+      console.log('[MarkerHandler] Detected marker:', preset, '-> Marker ID:', markerId);
+      checkReady();
+    }
+  });
+});
+
+document.addEventListener('DOMContentLoaded', () => {
+  console.log('[MarkerHandler] MarkerHandler.js loaded');
 });
