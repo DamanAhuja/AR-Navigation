@@ -1,15 +1,12 @@
-window.addEventListener("load", () => {
-  const map = L.map('map', {
-    crs: L.CRS.Simple,
-    minZoom: -1
-  });
 
-  const imageWidth = 230;
-  const imageHeight = 450;
-  window.svgHeight = 450;
-  const imageBounds = [[0, 0], [imageHeight, imageWidth]];
-  L.imageOverlay('RDSC.jpg', imageBounds).addTo(map);
-  map.fitBounds(imageBounds);
+window.addEventListener("load", () => {
+  const map = L.map('map', { crs: L.CRS.Simple, minZoom: -1 });
+
+  const imageWidth = 230, imageHeight = 450;
+  window.svgHeight = imageHeight;
+  const bounds = [[0, 0], [imageHeight, imageWidth]];
+  L.imageOverlay('RDSC.jpg', bounds).addTo(map);
+  map.fitBounds(bounds);
 
   window.scaleFactorX = imageWidth / 230;
   window.scaleFactorY = imageHeight / 450;
@@ -18,67 +15,46 @@ window.addEventListener("load", () => {
   let graph = {};
   let currentMarkerId = null;
   let pathLayers = [];
-
-  // AR arrow entities tracked here
-  let arArrowEntities = [];
   let currentPath = [];
 
+  let smoothedHeading = 0;
+  let arArrow = null;
+
   function waitForGraph() {
-    if (
-      window.extractedNodes && window.extractedNodes.length > 0 &&
-      window.extractedEdges && window.extractedEdges.length > 0
-    ) {
+    if (window.extractedNodes?.length && window.extractedEdges?.length) {
       const nodes = window.extractedNodes.map(n => ({
         ...n,
         x: n.x * window.scaleFactorX,
         y: (svgHeight - n.y) * window.scaleFactorY
       }));
-
       nodes.forEach(n => window.nodeMap[n.id] = n);
 
-      window.extractedEdges.forEach(edge => {
-        const from = window.nodeMap[edge.from];
-        const to = window.nodeMap[edge.to];
-        if (from && to) {
-          graph[from.id] = graph[from.id] || [];
-          graph[to.id] = graph[to.id] || [];
-          const weight = Math.hypot(to.x - from.x, to.y - from.y);
-          graph[from.id].push({ node: to.id, weight });
-          graph[to.id].push({ node: from.id, weight });
+      window.extractedEdges.forEach(e => {
+        const f = window.nodeMap[e.from], t = window.nodeMap[e.to];
+        if (f && t) {
+          graph[f.id] = graph[f.id] || [];
+          graph[t.id] = graph[t.id] || [];
+          const weight = Math.hypot(t.x - f.x, t.y - f.y);
+          graph[f.id].push({ node: t.id, weight });
+          graph[t.id].push({ node: f.id, weight });
         }
       });
 
       nodes.forEach(node => {
         L.circleMarker([node.y, node.x], {
-          radius: 5, color: 'blue', fillColor: 'lightblue', fillOpacity: 0.8
+          radius: 5,
+          color: 'blue',
+          fillColor: 'lightblue',
+          fillOpacity: 0.8
         }).addTo(map).bindPopup(node.id);
       });
 
-      // Delay user marker creation until first scan
       let userMarker = null;
       window.userMarker = null;
 
-      window.goTo = function(targetNodeId) {
-        if (!currentMarkerId) {
-          console.warn("Current user location not set.");
-          return;
-        }
-        const result = dijkstra(currentMarkerId, targetNodeId);
-        if (result.path) {
-          drawPath(result.path);
-          placeArrows(result.path);
-          console.log(`Path:`, result.path, `Distance:`, result.distance, `m`);
-        } else {
-          console.warn("No path found.");
-        }
-      };
-
       window.setUserLocation = function(markerId) {
         const match = window.nodeMap[markerId];
-        if (!match) {
-          console.warn("Marker ID not found:", markerId);
-          return;
-        }
+        if (!match) return console.warn("Marker ID not found:", markerId);
 
         currentMarkerId = markerId;
 
@@ -90,103 +66,137 @@ window.addEventListener("load", () => {
         } else {
           window.userMarker.setLatLng([match.y, match.x]);
         }
+
         window.userMarker.openPopup();
 
         clearPath();
-        clearArrows();
-        clearArRowEntities();
+        currentPath = [];
+        if (arArrow) { arArrow.remove(); arArrow = null; }
+      };
 
-        // Persist current path to update arrows as user moves
-        currentPath = currentPath;
+      window.goTo = function(targetNodeId) {
+        if (!currentMarkerId) return console.warn("Current user location not set.");
+        const res = dijkstra(currentMarkerId, targetNodeId);
+        if (res.path) {
+          drawPath(res.path);
+          currentPath = res.path;
+          initArLoop();
+          console.log(`Path: ${res.path.join(" -> ")}, Distance: ${res.distance} m`);
+        } else {
+          console.warn("No path found.");
+        }
       };
 
       function dijkstra(start, end) {
-        const distances = {}, previous = {}, queue = new Set(Object.keys(graph));
-        queue.forEach(node => (distances[node] = Infinity, previous[node] = null));
+        const distances = {}, prev = {}, nodes = Object.keys(graph);
+        nodes.forEach(n => (distances[n] = Infinity, prev[n] = null));
         distances[start] = 0;
 
-        while (queue.size) {
-          let minNode = [...queue].reduce((a, b) => distances[a] < distances[b] ? a : b);
-          if (minNode === end) break;
-          queue.delete(minNode);
-          graph[minNode].forEach(neighbor => {
-            const alt = distances[minNode] + neighbor.weight;
-            if (alt < distances[neighbor.node]) {
-              distances[neighbor.node] = alt;
-              previous[neighbor.node] = minNode;
+        while (nodes.length) {
+          nodes.sort((a, b) => distances[a] - distances[b]);
+          const u = nodes.shift();
+          if (u === end) break;
+
+          graph[u].forEach(nb => {
+            const alt = distances[u] + nb.weight;
+            if (alt < distances[nb.node]) {
+              distances[nb.node] = alt;
+              prev[nb.node] = u;
             }
           });
         }
 
         const path = [];
-        let node = end;
-        while (node) {
-          path.unshift(node);
-          node = previous[node];
+        let cur = end;
+        while (cur) {
+          path.unshift(cur);
+          cur = prev[cur];
         }
 
         return {
-          distance: distances[end] * 0.04254.toFixed(2),
-          path: distances[end] === Infinity ? null : path
+          distance: (distances[end] * 0.04254).toFixed(2), // convert px to meters
+          path: distances[end] !== Infinity ? path : null
         };
       }
 
       function clearPath() {
-        pathLayers.forEach(layer => map.removeLayer(layer));
+        pathLayers.forEach(l => map.removeLayer(l));
         pathLayers = [];
-      }
-
-      function clearArrows() {
-        arArrowEntities = arArrowEntities.filter(ent => {
-          ent.parentNode.removeChild(ent);
-          return false;
-        });
-        arArrowEntities = [];
-      }
-
-      function clearArRowEntities() {
-        clearArrows(); // just alias
       }
 
       function drawPath(path) {
         clearPath();
-        currentPath = path;
+        for (let i = 0; i < path.length - 1; i++) {
+          const from = window.nodeMap[path[i]];
+          const to = window.nodeMap[path[i + 1]];
+          const edge = window.extractedEdges.find(e =>
+            (e.from === from.id && e.to === to.id) || (e.from === to.id && e.to === from.id)
+          );
 
-        path.forEach((id, idx) => {
-          if (idx === path.length - 1) return;
-          const from = window.nodeMap[path[idx]];
-          const to = window.nodeMap[path[idx + 1]];
-          const poly = L.polyline([[from.y, from.x], [to.y, to.x]], { color: 'green', weight: 4 }).addTo(map);
-          pathLayers.push(poly);
-        });
+          if (edge && edge.controlPoints?.length === 2) {
+            const cp1 = {
+              x: edge.controlPoints[0].x * window.scaleFactorX,
+              y: (svgHeight - edge.controlPoints[0].y) * window.scaleFactorY
+            };
+            const cp2 = {
+              x: edge.controlPoints[1].x * window.scaleFactorX,
+              y: (svgHeight - edge.controlPoints[1].y) * window.scaleFactorY
+            };
+
+            const latlngs = [];
+            const steps = 20;
+            for (let t = 0; t <= 1; t += 1 / steps) {
+              const x = Math.pow(1 - t, 3) * from.x +
+                        3 * Math.pow(1 - t, 2) * t * cp1.x +
+                        3 * (1 - t) * Math.pow(t, 2) * cp2.x +
+                        Math.pow(t, 3) * to.x;
+              const y = Math.pow(1 - t, 3) * from.y +
+                        3 * Math.pow(1 - t, 2) * t * cp1.y +
+                        3 * (1 - t) * Math.pow(t, 2) * cp2.y +
+                        Math.pow(t, 3) * to.y;
+              latlngs.push([y, x]);
+            }
+
+            const curve = L.polyline(latlngs, { color: 'green', weight: 4 }).addTo(map);
+            pathLayers.push(curve);
+          } else {
+            const line = L.polyline([[from.y, from.x], [to.y, to.x]], { color: 'green', weight: 4 }).addTo(map);
+            pathLayers.push(line);
+          }
+        }
       }
 
-      // Adds 3D arrows in your AR scene inside <a-scene>
-      function placeArrows(path) {
-        clearArRowEntities();
+      function initArLoop() {
+        if (window._arLoop) cancelAnimationFrame(window._arLoop);
+        window._arLoop = requestAnimationFrame(updateArrow);
+      }
+
+      function updateArrow() {
+        if (!currentPath.length) return;
+
         const scene = document.querySelector('a-scene');
-        if (!scene) return;
+        const pos = window.userPosition;
+        const heading = window.cameraHeading;
+        smoothedHeading += (heading - smoothedHeading) * 0.1;
 
-        path.forEach((id, idx) => {
-          if (idx === path.length - 1) return;
-          const from = window.nodeMap[id];
-          const to = window.nodeMap[path[idx+1]];
+        if (scene && pos) {
+          if (arArrow) arArrow.remove();
 
-          // Midpoint in AR world coords (scaled down)
-          const mx = (from.x + to.x) / 2 / 100;
-          const mz = (from.y + to.y) / 2 / 100;
-          const dx = to.x - from.x;
-          const dz = to.y - from.y;
-          const yaw = Math.atan2(dz, dx) * (180 / Math.PI);
+          const [fromId, toId] = currentPath;
+          const f = window.nodeMap[fromId], t = window.nodeMap[toId];
+          const mx = (f.x + t.x) / 2, my = (f.y + t.y) / 2;
+          let yaw = Math.atan2(t.y - f.y, t.x - f.x) * 180 / Math.PI;
+          yaw -= smoothedHeading;
 
-          const arrow = document.createElement('a-entity');
-          arrow.setAttribute('geometry', 'primitive: cone; radiusBottom: 0.05; height: 0.2');
-          arrow.setAttribute('material', 'color: yellow; opacity:0.8');
-          arrow.setAttribute('position', `${mx} 0 ${mz}`);
-          arrow.setAttribute('rotation', `-90 ${-yaw} 0`);
-          scene.appendChild(arrow);
-          arArrowEntities.push(arrow);
-        });
+          arArrow = document.createElement('a-entity');
+          arArrow.setAttribute('geometry', 'primitive: cone; radiusBottom: 0.05; height: 0.2');
+          arArrow.setAttribute('material', 'color: yellow; opacity:0.8');
+          arArrow.setAttribute('position', `${(mx - pos.x) / 80} 0.05 ${(my - pos.y) / 80}`);
+          arArrow.setAttribute('rotation', `-90 ${-yaw} 0`);
+          scene.appendChild(arArrow);
+        }
+
+        window._arLoop = requestAnimationFrame(updateArrow);
       }
 
     } else {
@@ -196,3 +206,4 @@ window.addEventListener("load", () => {
 
   waitForGraph();
 });
+
