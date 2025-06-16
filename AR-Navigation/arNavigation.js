@@ -3,18 +3,45 @@ let nextNodeIndex = 0;
 let arrowEntity = null;
 const ARROW_DISTANCE = 2; // Distance in meters in front of the camera
 const NODE_REACHED_THRESHOLD = 5; // Distance in SVG units to consider a node "reached"
+let retryCount = 0;
+const MAX_RETRIES = 50; // 5 seconds (50 * 100ms)
 
 function startNavigation(destinationId) {
-  if (!window.setCurrentMarkerId || !window.goTo || !window.nodeMap || !window.userPosition || !window.north) {
-    console.warn('[ARNavigation] Required variables not available, retrying...');
-    setTimeout(() => startNavigation(destinationId), 100);
+  // Reset retry count for a new navigation attempt
+  retryCount = 0;
+  attemptNavigation(destinationId);
+}
+
+function attemptNavigation(destinationId) {
+  // Check for missing variables and log specifically which ones are missing
+  const missingVars = [];
+  if (!window.setCurrentMarkerId) missingVars.push('setCurrentMarkerId');
+  if (!window.goTo) missingVars.push('goTo');
+  if (!window.nodeMap) missingVars.push('nodeMap');
+  if (!window.userPosition) missingVars.push('userPosition');
+  if (!window.north) missingVars.push('north');
+
+  if (missingVars.length > 0) {
+    if (retryCount >= MAX_RETRIES) {
+      console.error(
+        '[ARNavigation] Failed to start navigation after maximum retries. Missing variables:',
+        missingVars.join(', ')
+      );
+      alert('Unable to start navigation. Please ensure all required data is loaded and try again.');
+      return;
+    }
+
+    console.warn(
+      '[ARNavigation] Required variables not available, retrying... Missing:',
+      missingVars.join(', ')
+    );
+    retryCount++;
+    setTimeout(() => attemptNavigation(destinationId), 100);
     return;
   }
 
-  // Get the path to the destination
+  // All variables are available, proceed with navigation
   window.goTo(destinationId);
-  // window.goTo logs the path, but we need to access it. Since window.goTo doesn't return the path,
-  // we'll use a workaround by calling dijkstra directly (copying logic from leaflet.js)
   const currentMarkerId = window.nodeMap[Object.keys(window.nodeMap).find(id => {
     const node = window.nodeMap[id];
     const dist = Math.hypot(
