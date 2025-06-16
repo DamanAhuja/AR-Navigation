@@ -135,9 +135,9 @@ window.routeToDestination = async function () {
     }
 
     // Trigger path rendering
-    if (typeof window.goTo === 'function') {
+    if (typeof window.startNavigation === 'function') {
       console.log(`Routing to destination: ${selectedValue}`);
-      window.goTo(selectedValue);
+      window.startNavigation(selectedValue)
     } else {
       console.error("[Routing] goTo function is not defined");
     }
