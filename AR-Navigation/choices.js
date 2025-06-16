@@ -126,6 +126,13 @@ window.routeToDestination = async function () {
   const selectedValue = dropdown?.value;
 
   if (dropdown && selectedValue) {
+    // Check if a marker has been scanned
+    if (!window.userPosition) {
+      console.warn('[Navigation] No marker scanned yet, cannot start navigation');
+      alert('Please scan a marker to set your position before starting navigation.');
+      return;
+    }
+
     // Request sensor permissions
     const permissionsGranted = await window.requestSensorPermissions();
     if (!permissionsGranted) {
@@ -134,12 +141,13 @@ window.routeToDestination = async function () {
       return;
     }
 
-    // Trigger path rendering
+    // Trigger AR navigation
     if (typeof window.startNavigation === 'function') {
-      console.log(`Routing to destination: ${selectedValue}`);
-      window.startNavigation(selectedValue)
+      console.log(`[Navigation] Starting AR navigation to: ${selectedValue}`);
+      window.startNavigation(selectedValue);
     } else {
-      console.error("[Routing] goTo function is not defined");
+      console.error("[Navigation] startNavigation function is not defined");
+      alert("AR navigation is not available. Please try again later.");
     }
 
     // Reset the dropdown selection
@@ -150,5 +158,6 @@ window.routeToDestination = async function () {
     }
   } else {
     console.warn('No destination selected');
+    alert('Please select a destination.');
   }
 };
