@@ -198,4 +198,3 @@ window.addEventListener("load", () => {
 
     waitForGraph();
 });
-this is the leaflet.js pls make the changes to it
