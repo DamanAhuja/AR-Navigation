@@ -3,7 +3,6 @@ window.stepCount = 0;
 let lastMagnitude = 0;
 let isRising = false;
 let cameraHeading = 0;
-let hasMarkerBeenScanned = false;
 const stepLength = 0.7;
 let lastStepTime = 0;
 const stepThreshold = 3.0;
@@ -17,8 +16,8 @@ function getNorthOffset() {
     console.warn('[Sensors] window.north not defined or invalid, assuming north is up');
     return 0;
   }
-  const centerX = 115;
-  const centerY = 225;
+  const centerX = 115; // 230 / 2
+  const centerY = 225; // 450 / 2
   const deltaX = window.north.x - centerX;
   const deltaY = window.north.y - centerY;
   const angle = Math.atan2(deltaX, deltaY) * 180 / Math.PI;
@@ -57,58 +56,6 @@ window.requestSensorPermissions = async function () {
   }
 };
 
-function syncUserPosition() {
-  if (window.userMarker) {
-    const latLng = window.userMarker.getLatLng();
-    if (latLng) {
-      const leafletX = latLng.lng;
-      const leafletY = latLng.lat;
-      window.userPosition.x = leafletX / scaleFactorX;
-      window.userPosition.y = (svgHeight - leafletY) / scaleFactorY;
-      console.log('[Sensors] Synced userPosition from userMarker:', window.userPosition, 'Leaflet coords:', [leafletY, leafletX]);
-    } else {
-      console.warn('[Sensors] userMarker latLng not available');
-    }
-  } else {
-    console.warn('[Sensors] userMarker not available for syncing');
-  }
-}
-
-const originalSetUserLocation = window.setUserLocation;
-window.setUserLocation = function (markerId) {
-  if (!window.nodeMap || !window.nodeMap[markerId]) {
-    console.warn('[Sensors] nodeMap or markerId not found:', markerId);
-    return;
-  }
-
-  const match = window.nodeMap[markerId];
-  if (!window.userMarker) {
-    window.userMarker = L.circleMarker([match.lat, match.lng], {
-      radius: 5,
-      color: 'blue',
-      fillColor: 'blue',
-      fillOpacity: 0.8
-    }).addTo(map).bindPopup("You are here");
-    console.log('[Sensors] Created userMarker at:', [match.lat, match.lng]);
-  } else {
-    window.userMarker.setLatLng([match.lat, match.lng]);
-    console.log('[Sensors] Updated userMarker to:', [match.lat, match.lng]);
-  }
-
-  hasMarkerBeenScanned = true;
-  window.stepCount = 0; // Reset step count
-  console.log('[Sensors] Reset stepCount to 0');
-  syncUserPosition();
-
-  if (typeof window.setCurrentMarkerId === 'function') {
-    window.setCurrentMarkerId(markerId);
-  }
-
-  if (originalSetUserLocation) {
-    originalSetUserLocation(markerId);
-  }
-};
-
 function detectStep(accel) {
   const magnitude = Math.sqrt(accel.x ** 2 + accel.y ** 2 + accel.z ** 2);
   const currentTime = Date.now();
@@ -127,54 +74,51 @@ function detectStep(accel) {
 }
 
 function updatePosition() {
-  if (!hasMarkerBeenScanned) {
-    console.log('[Sensors] Waiting for first marker scan before updating position');
-    return;
-  }
-
   const northOffset = getNorthOffset();
   const adjustedHeading = (cameraHeading + northOffset) % 360;
   const rad = (adjustedHeading * Math.PI) / 180;
   const svgScale = 10;
   window.userPosition.x += stepLength * Math.sin(rad) * svgScale;
-  window.userPosition.y -= stepLength * Math.cos(rad) * svgScale;
+  window.userPosition.y -= stepLength * Math.cos(rad) * svgScale; // Re-add y-inversion for correct mapping
   console.log('[Sensors] Camera heading:', cameraHeading, 'Adjusted heading:', adjustedHeading);
   console.log('[Sensors] Updated position (SVG coords):', window.userPosition);
   updateMapMarker(window.userPosition);
 }
 
 function updateMapMarker(position) {
-  if (window.userMarker && hasMarkerBeenScanned) {
+  if (window.userMarker) {
     const leafletX = position.x * scaleFactorX;
     const leafletY = (svgHeight - position.y) * scaleFactorY;
     window.userMarker.setLatLng([leafletY, leafletX]);
     console.log('[Sensors] Updated Leaflet marker:', [leafletY, leafletX]);
   } else {
-    console.log('[Sensors] Skipping updateMapMarker: userMarker not initialized or no marker scanned');
+    console.error('[Sensors] userMarker not initialized in updateMapMarker');
   }
 }
 
 window.addEventListener('devicemotion', (event) => {
   if (event.accelerationIncludingGravity) {
-    detectStep(event.accelerationIncludingGravity);
+    detectStep(event.acceleration);
   } else {
     console.warn('[Sensors] No acceleration data available');
   }
 });
 
+// Compute camera heading from deviceorientation
 let alpha = 0, beta = 0, gamma = 0;
 window.addEventListener('deviceorientation', (event) => {
   if (event.alpha !== null && event.beta !== null && event.gamma !== null) {
     alpha = event.alpha;
     beta = event.beta;
     gamma = event.gamma;
-    if (Math.abs(beta) > 45) {
-      if (Math.abs(gamma) > 45) {
+    // Compute camera heading based on orientation
+    if (Math.abs(beta) > 45) { // Phone is vertical (portrait or landscape)
+      if (Math.abs(gamma) > 45) { // Landscape
         cameraHeading = (alpha + (gamma > 0 ? 90 : -90)) % 360;
-      } else {
+      } else { // Portrait
         cameraHeading = alpha;
       }
-    } else {
+    } else { // Phone is flat
       cameraHeading = alpha;
     }
     cameraHeading = (cameraHeading + 360) % 360;
