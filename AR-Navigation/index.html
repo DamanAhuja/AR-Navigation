@@ -144,8 +144,6 @@
   </div>
 
   <a-scene arjs="sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix;" vr-mode-ui="enabled: false">
-   
-
     <!-- Camera entity -->
     <a-entity camera look-controls position="0 0 0"></a-entity>
     <a-marker preset="hiro">
@@ -154,22 +152,13 @@
     <a-marker preset="kanji">
       <!--<a-sphere position="0 0.1 0" radius="0.2" material="color: red"></a-sphere>-->
     </a-marker>
-    
     <!-- Floating Cube without marker -->
     <!--<a-box position="0 0 -2" color="blue" depth="1" height="1" width="1"></a-box>-->
   </a-scene>
- <!-- <a-scene embedded arjs="sourceType: webcam; debugUIEnabled: true; trackingMethod: best" vr-mode-ui="enabled: false" webxr="optionalFeatures: hit-test">
-    <a-camera position="0 1.6 0" camera="fov: 80; near: 0.1; far: 100">
-      <a-box position="0 -0.5 -0.3" material="color: blue; opacity: 1" scale="0.3 0.3 0.3" visible="true" animation="property: rotation; to: 0 360 0; loop: true; dur: 2000"></a-box>
-    </a-camera>
-    <a-box position="0 0 -0.5" material="color: green; opacity: 1" scale="0.3 0.3 0.3" visible="true"></a-box>
-    <a-marker preset="hiro">
-      <a-sphere position="0.5 0.5 0" radius="0.25" material="color: blue; opacity: 1"></a-sphere>
-    </a-marker>
-  </a-scene>-->
   <script src="svg.js"></script>
   <script src="leaflet.js"></script>
   <script src="MarkerHandler.js"></script>
+  <script src="arNavigation.js"></script>
   <script>
     const bodyObserver = new MutationObserver((mutations) => {
       mutations.forEach(() => {
@@ -180,6 +169,42 @@
       });
     });
     bodyObserver.observe(document.body, { attributes: true, attributeFilter: ['style'] });
+
+    let choicesInstance = null;
+
+    function populateDropdown() {
+      if (window.nodeMap && Object.keys(window.nodeMap).length > 0) {
+        const destinations = Object.keys(window.nodeMap).map(id => ({
+          value: id,
+          label: id
+        }));
+        choicesInstance = new Choices('#destinationDropdown', {
+          choices: destinations,
+          placeholderValue: 'Select a destination',
+          searchEnabled: true,
+          itemSelectText: ''
+        });
+        console.log('[Navigation] Dropdown populated with destinations:', destinations);
+      } else {
+        console.warn('[Navigation] window.nodeMap not ready, retrying...');
+        setTimeout(populateDropdown, 100);
+      }
+    }
+
+    function routeToDestination() {
+      const selectedDestination = choicesInstance.getValue(true);
+      if (!selectedDestination) {
+        alert('Please select a destination.');
+        return;
+      }
+      if (typeof window.startNavigation === 'function') {
+        window.startNavigation(selectedDestination);
+        console.log('[Navigation] Started AR navigation to:', selectedDestination);
+      } else {
+        console.error('[Navigation] window.startNavigation is not defined');
+        alert('Navigation functionality is not available. Please try again later.');
+      }
+    }
 
     document.addEventListener('DOMContentLoaded', () => {
       const sceneEl = document.querySelector('a-scene');
@@ -223,6 +248,9 @@
           sceneEl.renderer.setSize(window.innerWidth, window.innerHeight);
         }
       });
+
+      // Populate the dropdown on load
+      populateDropdown();
     });
   </script>
 </body>
