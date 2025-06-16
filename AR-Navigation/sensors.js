@@ -3,7 +3,7 @@ window.stepCount = 0;
 let lastMagnitude = 0;
 let isRising = false;
 let cameraHeading = 0;
-let hasMarkerBeenScanned = false; // Flag to track if a marker has been scanned
+let hasMarkerBeenScanned = false;
 const stepLength = 0.7;
 let lastStepTime = 0;
 const stepThreshold = 3.0;
@@ -17,8 +17,8 @@ function getNorthOffset() {
     console.warn('[Sensors] window.north not defined or invalid, assuming north is up');
     return 0;
   }
-  const centerX = 115; // 230 / 2
-  const centerY = 225; // 450 / 2
+  const centerX = 115;
+  const centerY = 225;
   const deltaX = window.north.x - centerX;
   const deltaY = window.north.y - centerY;
   const angle = Math.atan2(deltaX, deltaY) * 180 / Math.PI;
@@ -74,7 +74,6 @@ function syncUserPosition() {
   }
 }
 
-// Override window.setUserLocation to create userMarker if it doesn't exist
 const originalSetUserLocation = window.setUserLocation;
 window.setUserLocation = function (markerId) {
   if (!window.nodeMap || !window.nodeMap[markerId]) {
@@ -84,7 +83,6 @@ window.setUserLocation = function (markerId) {
 
   const match = window.nodeMap[markerId];
   if (!window.userMarker) {
-    // Create userMarker and add to map
     window.userMarker = L.circleMarker([match.lat, match.lng], {
       radius: 5,
       color: 'blue',
@@ -93,18 +91,19 @@ window.setUserLocation = function (markerId) {
     }).addTo(map).bindPopup("You are here");
     console.log('[Sensors] Created userMarker at:', [match.lat, match.lng]);
   } else {
-    // Update existing userMarker position
     window.userMarker.setLatLng([match.lat, match.lng]);
     console.log('[Sensors] Updated userMarker to:', [match.lat, match.lng]);
   }
 
-  // Mark that a marker has been scanned
   hasMarkerBeenScanned = true;
-
-  // Sync userPosition
+  window.stepCount = 0; // Reset step count
+  console.log('[Sensors] Reset stepCount to 0');
   syncUserPosition();
 
-  // Call original setUserLocation if it exists
+  if (typeof window.setCurrentMarkerId === 'function') {
+    window.setCurrentMarkerId(markerId);
+  }
+
   if (originalSetUserLocation) {
     originalSetUserLocation(markerId);
   }
@@ -128,7 +127,6 @@ function detectStep(accel) {
 }
 
 function updatePosition() {
-  // Only update position if a marker has been scanned
   if (!hasMarkerBeenScanned) {
     console.log('[Sensors] Waiting for first marker scan before updating position');
     return;
