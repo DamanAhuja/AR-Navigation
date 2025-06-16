@@ -4,7 +4,6 @@ window.addEventListener("load", () => {
         minZoom: -1
     });
 
-    // Expose map globally for sensors.js
     window.map = map;
 
     const imageWidth = 230;
@@ -14,8 +13,10 @@ window.addEventListener("load", () => {
     L.imageOverlay('RDSC.jpg', imageBounds).addTo(map);
     map.fitBounds(imageBounds);
 
-    const scaleFactorX = imageWidth / 230;
-    const scaleFactorY = imageHeight / 450;
+    // Expose scaling factors globally
+    window.scaleFactorX = imageWidth / 230;
+    window.scaleFactorY = imageHeight / 450;
+    window.svgHeight = svgHeight;
 
     window.nodeMap = {};
     let graph = {};
@@ -29,13 +30,12 @@ window.addEventListener("load", () => {
         ) {
             const nodes = window.extractedNodes.map(n => ({
                 ...n,
-                x: n.x * scaleFactorX,
-                y: (svgHeight - n.y) * scaleFactorY
+                x: n.x * window.scaleFactorX,
+                y: (window.svgHeight - n.y) * window.scaleFactorY
             }));
 
             nodes.forEach(n => window.nodeMap[n.id] = n);
 
-            // Build graph
             window.extractedEdges.forEach(edge => {
                 const from = window.nodeMap[edge.from];
                 const to = window.nodeMap[edge.to];
@@ -48,7 +48,6 @@ window.addEventListener("load", () => {
                 }
             });
 
-            // Render nodes
             nodes.forEach(node => {
                 L.circleMarker([node.y, node.x], {
                     radius: 5,
@@ -58,7 +57,6 @@ window.addEventListener("load", () => {
                 }).addTo(map).bindPopup(node.id);
             });
 
-            // Expose a global function to go to a destination
             window.goTo = function (targetNodeId) {
                 if (!currentMarkerId) {
                     console.warn("Current user location not set.");
@@ -74,12 +72,10 @@ window.addEventListener("load", () => {
                 }
             };
 
-            // Set currentMarkerId when location is set
             window.setCurrentMarkerId = function (markerId) {
                 currentMarkerId = markerId;
             };
 
-            // Pathfinding
             function dijkstra(start, end) {
                 const distances = {}, previous = {}, queue = new Set(Object.keys(graph));
                 for (const node of queue) {
@@ -141,12 +137,12 @@ window.addEventListener("load", () => {
 
                     if (edge && edge.controlPoints && edge.controlPoints.length === 2) {
                         const cp1 = {
-                            x: edge.controlPoints[0].x * scaleFactorX,
-                            y: (svgHeight - edge.controlPoints[0].y) * scaleFactorY
+                            x: edge.controlPoints[0].x * window.scaleFactorX,
+                            y: (window.svgHeight - edge.controlPoints[0].y) * window.scaleFactorY
                         };
                         const cp2 = {
-                            x: edge.controlPoints[1].x * scaleFactorX,
-                            y: (svgHeight - edge.controlPoints[1].y) * scaleFactorY
+                            x: edge.controlPoints[1].x * window.scaleFactorX,
+                            y: (window.svgHeight - edge.controlPoints[1].y) * window.scaleFactorY
                         };
 
                         const latlngs = [];
