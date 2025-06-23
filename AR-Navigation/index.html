@@ -136,8 +136,13 @@
   <script>
     let renderer, scene, camera;
     let arToolkitSource, arToolkitContext;
-    let window.markerRootHiro;
-    let window.markerRootKanji;
+    let markerRootHiro;
+    let markerRootKanji;
+
+    // Later in your init or setup code
+    window.markerRootHiro = markerRootHiro;
+    window.markerRootKanji = markerRootKanji;
+
 
     function init() {
       // Renderer
