@@ -136,7 +136,8 @@
   <script>
     let renderer, scene, camera;
     let arToolkitSource, arToolkitContext;
-    let markerRootHiro, markerRootKanji;
+    let window.markerRootHiro;
+    let window.markerRootKanji;
 
     function init() {
       // Renderer
@@ -182,9 +183,9 @@
 });
 
       // Hiro Marker
-      markerRootHiro = new THREE.Group();
-      scene.add(markerRootHiro);
-      new THREEx.ArMarkerControls(arToolkitContext, markerRootHiro, {
+      window.markerRootHiro = new THREE.Group();
+      scene.add(window.markerRootHiro);
+      new THREEx.ArMarkerControls(arToolkitContext, window.markerRootHiro, {
         type: 'pattern',
         patternUrl: 'patt.hiro',
       });
@@ -195,12 +196,12 @@
         new THREE.MeshBasicMaterial({ color: 0x00ff00 })
       );
       cube.position.y = 0.5;
-      markerRootHiro.add(cube);
+      window.markerRootHiro.add(cube);
 
       // Kanji Marker
-      markerRootKanji = new THREE.Group();
-      scene.add(markerRootKanji);
-      new THREEx.ArMarkerControls(arToolkitContext, markerRootKanji, {
+      window.markerRootKanji = new THREE.Group();
+      scene.add(window.markerRootKanji);
+      new THREEx.ArMarkerControls(arToolkitContext, window.markerRootKanji, {
         type: 'pattern',
         patternUrl: 'patt.kanji',
       });
@@ -211,7 +212,7 @@
         new THREE.MeshBasicMaterial({ color: 0xff0000 })
       );
       sphere.position.y = 0.5;
-      markerRootKanji.add(sphere);
+      window.markerRootKanji.add(sphere);
 
       // Resize events
       window.addEventListener('resize', onResize);
