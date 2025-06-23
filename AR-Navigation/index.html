@@ -232,12 +232,38 @@
         arToolkitSource.copyElementSizeTo(arToolkitContext.arController.canvas);
       }
     }
+    const markerMap = {
+  hiro: window.markerRootHiro,
+  kanji: window.markerRootKanji,
+  // Add more markers here if needed
+};
+
 
     function animate() {
       requestAnimationFrame(animate);
 
       if (arToolkitSource.ready) {
         arToolkitContext.update(arToolkitSource.domElement);
+
+        for (const [preset, markerGroup] of Object.entries(markerMap)) {
+      if (markerGroup.visible && !markerGroup.__wasVisible) {
+        markerGroup.__wasVisible = true;
+
+        // Dispatch a universal "markerFound" event
+        const event = new CustomEvent('markerFound', {
+          detail: { preset }
+        });
+        document.dispatchEvent(event);
+
+      } else if (!markerGroup.visible && markerGroup.__wasVisible) {
+        markerGroup.__wasVisible = false;
+
+        const event = new CustomEvent('markerLost', {
+          detail: { preset }
+        });
+        document.dispatchEvent(event);
+      }
+    }
       }
 
       renderer.render(scene, camera);
