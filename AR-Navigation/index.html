@@ -3,6 +3,28 @@
 <head>
   <meta charset="UTF-8">
   <title>AR.js + Leaflet + SVG + Markers</title>
+  <script>
+    window.DeviceParamsDB = function() {
+      this.getDeviceParams = function() {
+        console.log('DeviceParamsDB.getDeviceParams called, returning null to prevent dpdb.json fetch');
+        return null;
+      };
+      this.fetchDeviceParams_ = function() {
+        console.log('DeviceParamsDB.fetchDeviceParams_ called, doing nothing to prevent dpdb.json fetch');
+      };
+    };
+    window.THREEx = window.THREEx || {};
+    THREEx.copyElementSizeTo = function(element, targetElement) {
+      if (targetElement === document.body) {
+        console.log('Prevented AR.js from modifying body style');
+        return; // Do nothing if the target is <body>
+      }
+      targetElement.style.width = element.style.width;
+      targetElement.style.height = element.style.height;
+      targetElement.style.marginLeft = element.style.marginLeft;
+      targetElement.style.marginTop = element.style.marginTop;
+    };
+  </script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 
   <!-- Libraries -->
