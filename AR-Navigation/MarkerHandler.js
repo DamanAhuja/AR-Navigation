@@ -1,6 +1,5 @@
 document.addEventListener('markerFound', (e) => {
-  const marker = e.target;
-  const preset = marker.getAttribute('preset'); // e.g., "hiro" or "kanji"
+  const preset = e.detail.preset;
   const svgNodes = window.extractedNodes || [];
   let markerId;
 
