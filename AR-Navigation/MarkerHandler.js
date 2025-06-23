@@ -6,7 +6,8 @@ document.addEventListener('markerFound', (e) => {
 
   // Map preset to node ID
   if (window.markerRootHiro.visible) { markerId = svgNodes[0]?.id; // e.g., "Entrance"
-  else if (window.markerRootKanji.visible) { markerId = svgNodes[1]?.id; // e.g., "Entrance2"
+else if (window.markerRootKanji.visible) { markerId = svgNodes[1]?.id; // e.g., "Entrance2"
+
 
   console.log("Detected marker:", preset, "-> Marker ID:", markerId);
 
