@@ -32,23 +32,27 @@
   }
 
   // Create a simple arrow mesh (shaft + head)
-  function createArrowMesh() {
-    const shaft = new THREE.CylinderGeometry(0.03, 0.03, 0.6, 8);
-    const head = new THREE.ConeGeometry(0.1, 0.2, 8);
+ function createArrowMesh() {
+  const shaft = new THREE.CylinderGeometry(0.03, 0.03, 0.6, 8);
+  const head = new THREE.ConeGeometry(0.1, 0.2, 8);
 
-    const shaftMesh = new THREE.Mesh(shaft, new THREE.MeshBasicMaterial({ color: 0x1976d2 }));
-    const headMesh = new THREE.Mesh(head, new THREE.MeshBasicMaterial({ color: 0xff5722 }));
+  const shaftMesh = new THREE.Mesh(shaft, new THREE.MeshBasicMaterial({ color: 0x1976d2 }));
+  const headMesh = new THREE.Mesh(head, new THREE.MeshBasicMaterial({ color: 0xff5722 }));
 
-    shaftMesh.position.y = 0.3;
-    headMesh.position.y = 0.7;
+  shaftMesh.position.y = 0.3;
+  headMesh.position.y = 0.7;
 
-    const arrow = new THREE.Group();
-    arrow.add(shaftMesh);
-    arrow.add(headMesh);
+  const arrow = new THREE.Group();
+  arrow.add(shaftMesh);
+  arrow.add(headMesh);
 
-    arrow.rotation.x = Math.PI / 2;
-    return arrow;
-  }
+  arrow.rotation.x = Math.PI / 2;
+
+  console.log('[AR Arrow] Created arrow mesh');
+
+  return arrow;
+}
+
 
   function drawArrowsBetween(fromNode, toNode) {
     const from = svgToWorld(fromNode.x, fromNode.y);
