@@ -72,7 +72,7 @@ function drawArrowsBetween(fromNode, toNode) {
     arrow.position.set(worldX, 0, worldZ); // Y = 0 for flat ground
 
     scene.add(arrow); 
-    navArrows.push(arrow);
+    arrows.push(arrow);
 
     console.log(`[AR Navigation] Placed arrow at world: (${worldX.toFixed(2)}, 0, ${worldZ.toFixed(2)})`);
   }
