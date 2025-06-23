@@ -187,6 +187,11 @@
   }, 200);
 });
 
+      window.markerMap = {
+  hiro: window.markerRootHiro,
+  kanji: window.markerRootKanji,
+};
+
       // Hiro Marker
       window.markerRootHiro = new THREE.Group();
       scene.add(window.markerRootHiro);
@@ -232,12 +237,7 @@
         arToolkitSource.copyElementSizeTo(arToolkitContext.arController.canvas);
       }
     }
-    const markerMap = {
-  hiro: window.markerRootHiro,
-  kanji: window.markerRootKanji,
-  // Add more markers here if needed
-};
-
+    
 
     function animate() {
       requestAnimationFrame(animate);
