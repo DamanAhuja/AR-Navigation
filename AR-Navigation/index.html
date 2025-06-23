@@ -22,6 +22,7 @@
   overflow: hidden;
   margin: 0;
   padding: 0;
+  position: relative;
 }
 
     #routing-ui {
@@ -65,6 +66,7 @@
       border-radius: 5px;
       box-shadow: 0 0 10px rgba(0,0,0,0.5);
       z-index: 999;
+      pointer-events: auto;
     }
     #svgObject {
       position: absolute;
@@ -76,13 +78,14 @@
       visibility: hidden;
     }
    canvas {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
   z-index: 1;
   display: block;
+  object-fit: cover;
 }
 
   </style>
