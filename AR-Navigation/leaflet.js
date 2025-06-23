@@ -57,20 +57,25 @@ window.addEventListener("load", () => {
       let userMarker = null;
       window.userMarker = null;
 
-      window.goTo = function (targetNodeId) {
-        if (!currentMarkerId) {
-          console.warn("Current user location not set.");
-          return;
-        }
-        const result = dijkstra(currentMarkerId, targetNodeId);
-        if (result.path) {
-          drawPath(result.path);
-          console.log(`Shortest path from ${currentMarkerId} to ${targetNodeId}:`, result.path);
-          console.log("Total distance:", result.distance, "m");
-        } else {
-          console.warn("No path found.");
-        }
-      };
+   window.goTo = function (targetNodeId) {
+  if (!currentMarkerId) {
+    console.warn("Current user location not set.");
+    return;
+  }
+
+  const result = dijkstra(currentMarkerId, targetNodeId);
+
+  if (result.path) {
+    drawPath(result.path);
+    console.log(`Shortest path from ${currentMarkerId} to ${targetNodeId}:`, result.path);
+    console.log("Total distance:", result.distance, "m");
+  } else {
+    console.warn("No path found.");
+  }
+
+  return result; 
+};
+
 
       window.setCurrentMarkerId = function (markerId) {
         const match = window.nodeMap[markerId];
