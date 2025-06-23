@@ -1,233 +1,339 @@
-// arDirectionalNavigation.js
-// AR Navigation with directional arrows - Revised for dynamic node integration
+// arNavigation.js - AR Navigation with Path Arrows
 
-class ARDirectionalNavigation {
-  constructor() {
-    this.currentPath = null;
-    this.currentStepIndex = 0;
-    this.arrowGroup = null;
-    this.isNavigating = false;
-    this.arrowUpdateInterval = null;
-    this.currentUserPosition = null;
-    this.destinationNodeId = null;
-    
-    // Arrow configuration
-    this.arrowConfig = {
-      size: 0.5,
-      distance: 2, // Distance in front of camera
-      height: 1.5, // Height above ground
-      updateInterval: 1000, // 1 second updates
-      color: 0x00ff00, // Green arrows
-      opacity: 0.8
-    };
-    
-    this.init();
+window.arNavigationActive = false;
+window.currentPath = null;
+window.arrowObjects = [];
+window.navigationArrows = [];
+
+// Configuration
+const ARROW_SPACING = 1.0; // meters between arrows
+const ARROW_HEIGHT = 0.5; // height above ground
+const ARROW_SCALE = 0.3; // size of arrows
+const SVG_TO_METER_SCALE = 0.04254; // conversion factor from your leaflet.js
+
+// Arrow geometry creation
+function createArrowGeometry() {
+  const geometry = new THREE.ConeGeometry(0.2, 0.6, 8);
+  // Rotate to point forward (along Z-axis)
+  geometry.rotateX(-Math.PI / 2);
+  return geometry;
+}
+
+// Arrow material
+function createArrowMaterial() {
+  return new THREE.MeshBasicMaterial({ 
+    color: 0x00ff00, // Green arrows
+    transparent: true,
+    opacity: 0.8
+  });
+}
+
+// Calculate bearing between two points (in degrees)
+function calculateBearing(from, to) {
+  const deltaX = to.x - from.x;
+  const deltaY = to.y - from.y;
+  let bearing = Math.atan2(deltaX, deltaY) * (180 / Math.PI);
+  
+  // Adjust for north offset if available
+  if (window.north && typeof window.north.x === 'number' && typeof window.north.y === 'number') {
+    const northOffset = getNorthOffset();
+    bearing = (bearing - northOffset + 360) % 360;
   }
+  
+  return bearing;
+}
 
-  init() {
-    // Wait for AR scene to be ready
-    this.waitForARScene();
-    
-    // Listen for marker detection events from MarkerHandler.js
-    document.addEventListener('markerFound', (event) => {
-      this.handleMarkerFound(event.detail.preset);
-    });
-    
-    document.addEventListener('markerLost', (event) => {
-      this.handleMarkerLost(event.detail.preset);
-    });
-
-    // Expose navigation functions globally
-    window.startNavigation = (destination) => {
-      return this.startNavigation(destination);
-    };
-    
-    window.stopNavigation = () => {
-      this.stopNavigation();
-    };
-
-    // Listen for step detection (from your sensor system)
-    window.addEventListener('stepDetected', () => {
-      this.handleStepDetected();
-    });
+// Get north offset (copied from sensors.js logic)
+function getNorthOffset() {
+  if (!window.north || typeof window.north.x !== 'number' || typeof window.north.y !== 'number') {
+    return 0;
   }
+  const centerX = 115; // 230 / 2
+  const centerY = 225; // 450 / 2
+  const deltaX = window.north.x - centerX;
+  const deltaY = window.north.y - centerY;
+  return Math.atan2(deltaX, deltaY) * 180 / Math.PI;
+}
 
-  waitForARScene() {
-    if (window.markerRootHiro && window.markerRootKanji && scene) {
-      console.log('[AR Navigation] AR Scene ready');
-      this.setupArrowGroup();
-    } else {
-      setTimeout(() => this.waitForARScene(), 100);
-    }
-  }
+// Convert SVG coordinates to AR world coordinates
+function svgToARCoords(svgX, svgY) {
+  // Convert SVG pixels to meters using the scale factor
+  const meterX = svgX * SVG_TO_METER_SCALE;
+  const meterY = svgY * SVG_TO_METER_SCALE;
+  
+  // AR.js coordinate system: X right, Y up, Z towards user
+  // We'll use X-Z plane for ground positioning
+  return {
+    x: meterX - (230 * SVG_TO_METER_SCALE / 2), // Center the coordinate system
+    y: ARROW_HEIGHT, // Height above ground
+    z: -(meterY - (450 * SVG_TO_METER_SCALE / 2)) // Invert Z and center
+  };
+}
 
-  setupArrowGroup() {
-    // Create a group for arrows that will be added to the scene
-    this.arrowGroup = new THREE.Group();
-    scene.add(this.arrowGroup);
-    console.log('[AR Navigation] Arrow group created');
-  }
-
-  handleMarkerFound(preset) {
-    console.log(`[AR Navigation] Marker found: ${preset}`);
-    // Get the marker ID from the existing logic in MarkerHandler.js
-    this.updateUserPositionFromMarker(preset);
-  }
-
-  handleMarkerLost(preset) {
-    console.log(`[AR Navigation] Marker lost: ${preset}`);
-    // Continue navigation even if marker is lost
-  }
-
-  updateUserPositionFromMarker(preset) {
-    // Use the same logic as MarkerHandler.js to determine node ID
-    const svgNodes = window.extractedNodes || [];
-    let markerId;
+// Calculate path points with arrows at 1-meter intervals
+function calculateArrowPositions(path) {
+  if (!path || path.length < 2) return [];
+  
+  const arrowPositions = [];
+  
+  for (let i = 0; i < path.length - 1; i++) {
+    const fromNode = window.nodeMap[path[i]];
+    const toNode = window.nodeMap[path[i + 1]];
     
-    // Map preset to node ID (same as MarkerHandler.js)
-    if (preset === 'hiro') markerId = svgNodes[0]?.id;
-    else if (preset === 'kanji') markerId = svgNodes[1]?.id;
-    // Add more presets as needed
+    if (!fromNode || !toNode) continue;
     
-    if (markerId && window.nodeMap && window.nodeMap[markerId]) {
-      this.currentUserPosition = markerId;
-      console.log(`[AR Navigation] User position updated to: ${markerId}`);
+    // Convert to SVG coordinates (accounting for scaling)
+    const fromX = fromNode.x / window.scaleFactorX;
+    const fromY = (window.svgHeight - fromNode.y / window.scaleFactorY);
+    const toX = toNode.x / window.scaleFactorX;
+    const toY = (window.svgHeight - toNode.y / window.scaleFactorY);
+    
+    // Calculate segment distance in meters
+    const segmentDistance = Math.hypot(toX - fromX, toY - fromY) * SVG_TO_METER_SCALE;
+    const numArrows = Math.floor(segmentDistance / ARROW_SPACING);
+    
+    // Calculate bearing for this segment
+    const bearing = calculateBearing({x: fromX, y: fromY}, {x: toX, y: toY});
+    
+    // Place arrows along the segment
+    for (let j = 0; j < numArrows; j++) {
+      const t = (j + 1) / (numArrows + 1); // Don't place at exact start/end
+      const arrowX = fromX + t * (toX - fromX);
+      const arrowY = fromY + t * (toY - fromY);
       
-      // Update navigation if currently navigating
-      if (this.isNavigating) {
-        this.recalculateNavigationFromCurrentPosition();
-      }
-    }
-  }
-
-  startNavigation(destination) {
-    if (!this.currentUserPosition) {
-      console.warn('[AR Navigation] Current user position not set. Please scan a marker first.');
-      return false;
-    }
-
-    if (!window.nodeMap || !window.nodeMap[destination]) {
-      console.warn(`[AR Navigation] Destination ${destination} not found in nodeMap`);
-      return false;
-    }
-
-    // Store destination
-    this.destinationNodeId = destination;
-
-    // Calculate path using the pathfinding system
-    const pathResult = this.calculatePath(this.currentUserPosition, destination);
-    if (!pathResult || !pathResult.path) {
-      console.warn('[AR Navigation] No path found to destination');
-      return false;
-    }
-
-    this.currentPath = pathResult.path;
-    this.currentStepIndex = 0;
-    this.isNavigating = true;
-
-    console.log(`[AR Navigation] Starting navigation from ${this.currentUserPosition} to ${destination}`);
-    console.log('[AR Navigation] Path:', this.currentPath);
-    console.log('[AR Navigation] Distance:', pathResult.distance, 'm');
-
-    // Start showing arrows
-    this.startArrowUpdates();
-    
-    // Dispatch navigation started event
-    const event = new CustomEvent('navigationStarted', {
-      detail: { 
-        from: this.currentUserPosition, 
-        to: destination, 
-        path: this.currentPath,
-        distance: pathResult.distance
-      }
-    });
-    document.dispatchEvent(event);
-    
-    return true;
-  }
-
-  stopNavigation() {
-    this.isNavigating = false;
-    this.currentPath = null;
-    this.currentStepIndex = 0;
-    this.destinationNodeId = null;
-    
-    // Clear arrows
-    this.clearArrows();
-    
-    // Stop interval
-    if (this.arrowUpdateInterval) {
-      clearInterval(this.arrowUpdateInterval);
-      this.arrowUpdateInterval = null;
-    }
-    
-    console.log('[AR Navigation] Navigation stopped');
-    
-    // Dispatch navigation stopped event
-    const event = new CustomEvent('navigationStopped');
-    document.dispatchEvent(event);
-  }
-
-  recalculateNavigationFromCurrentPosition() {
-    if (!this.isNavigating || !this.destinationNodeId) return;
-    
-    console.log('[AR Navigation] Recalculating path from new position');
-    
-    // Recalculate path from current position
-    const pathResult = this.calculatePath(this.currentUserPosition, this.destinationNodeId);
-    if (pathResult && pathResult.path) {
-      this.currentPath = pathResult.path;
-      this.currentStepIndex = 0;
-      this.updateNavigationArrows();
-      console.log('[AR Navigation] Path recalculated:', this.currentPath);
-    }
-  }
-
-  calculatePath(start, end) {
-    // Wait for graph data to be available
-    if (!window.nodeMap || !window.extractedEdges) {
-      console.warn('[AR Navigation] Graph data not available');
-      return null;
-    }
-    
-    // Build graph from extracted edges
-    const graph = {};
-    
-    window.extractedEdges.forEach(edge => {
-      const from = window.nodeMap[edge.from];
-      const to = window.nodeMap[edge.to];
-      if (from && to) {
-        if (!graph[from.id]) graph[from.id] = [];
-        if (!graph[to.id]) graph[to.id] = [];
-        const weight = Math.hypot(to.x - from.x, to.y - from.y);
-        graph[from.id].push({ node: to.id, weight });
-        graph[to.id].push({ node: from.id, weight });
-      }
-    });
-
-    // Dijkstra algorithm implementation
-    const distances = {}, previous = {}, queue = new Set(Object.keys(graph));
-    for (const node of queue) {
-      distances[node] = Infinity;
-      previous[node] = null;
-    }
-    distances[start] = 0;
-
-    while (queue.size > 0) {
-      let currentNode = null;
-      let minDistance = Infinity;
-      for (const node of queue) {
-        if (distances[node] < minDistance) {
-          minDistance = distances[node];
-          currentNode = node;
+      // Check if we have curved path (Bezier curve)
+      const edge = window.extractedEdges.find(edge =>
+        (edge.from === fromNode.id && edge.to === toNode.id) ||
+        (edge.from === toNode.id && edge.to === fromNode.id)
+      );
+      
+      let finalX = arrowX;
+      let finalY = arrowY;
+      let segmentBearing = bearing;
+      
+      if (edge && edge.controlPoints && edge.controlPoints.length === 2) {
+        // Calculate position on Bezier curve
+        const cp1 = edge.controlPoints[0];
+        const cp2 = edge.controlPoints[1];
+        
+        const bezierPoint = calculateBezierPoint(
+          {x: fromX, y: fromY},
+          cp1,
+          cp2,
+          {x: toX, y: toY},
+          t
+        );
+        
+        finalX = bezierPoint.x;
+        finalY = bezierPoint.y;
+        
+        // Calculate tangent direction for curved path
+        const tangent = calculateBezierTangent(
+          {x: fromX, y: fromY},
+          cp1,
+          cp2,
+          {x: toX, y: toY},
+          t
+        );
+        
+        segmentBearing = Math.atan2(tangent.x, tangent.y) * (180 / Math.PI);
+        
+        // Adjust for north offset
+        if (window.north) {
+          const northOffset = getNorthOffset();
+          segmentBearing = (segmentBearing - northOffset + 360) % 360;
         }
       }
+      
+      arrowPositions.push({
+        svgX: finalX,
+        svgY: finalY,
+        bearing: segmentBearing,
+        arCoords: svgToARCoords(finalX, finalY)
+      });
+    }
+  }
+  
+  return arrowPositions;
+}
 
-      if (currentNode === end) break;
-      queue.delete(currentNode);
+// Calculate point on Bezier curve
+function calculateBezierPoint(p0, p1, p2, p3, t) {
+  const mt = 1 - t;
+  const mt2 = mt * mt;
+  const mt3 = mt2 * mt;
+  const t2 = t * t;
+  const t3 = t2 * t;
+  
+  return {
+    x: mt3 * p0.x + 3 * mt2 * t * p1.x + 3 * mt * t2 * p2.x + t3 * p3.x,
+    y: mt3 * p0.y + 3 * mt2 * t * p1.y + 3 * mt * t2 * p2.y + t3 * p3.y
+  };
+}
 
-      if (!graph[currentNode]) continue;
+// Calculate tangent (derivative) of Bezier curve
+function calculateBezierTangent(p0, p1, p2, p3, t) {
+  const mt = 1 - t;
+  const mt2 = mt * mt;
+  const t2 = t * t;
+  
+  return {
+    x: -3 * mt2 * p0.x + 3 * mt2 * p1.x - 6 * mt * t * p1.x + 6 * mt * t * p2.x - 3 * t2 * p2.x + 3 * t2 * p3.x,
+    y: -3 * mt2 * p0.y + 3 * mt2 * p1.y - 6 * mt * t * p1.y + 6 * mt * t * p2.y - 3 * t2 * p2.y + 3 * t2 * p3.y
+  };
+}
 
+// Create arrow objects in AR scene
+function createArrowObjects(arrowPositions, markerGroup) {
+  const arrowGeometry = createArrowGeometry();
+  const arrowMaterial = createArrowMaterial();
+  
+  arrowPositions.forEach((arrowPos, index) => {
+    const arrow = new THREE.Mesh(arrowGeometry, arrowMaterial);
+    
+    // Position the arrow
+    arrow.position.set(
+      arrowPos.arCoords.x,
+      arrowPos.arCoords.y,
+      arrowPos.arCoords.z
+    );
+    
+    // Rotate arrow to point in the correct direction
+    const bearingRad = (arrowPos.bearing * Math.PI) / 180;
+    arrow.rotation.y = bearingRad;
+    
+    // Scale the arrow
+    arrow.scale.setScalar(ARROW_SCALE);
+    
+    // Add to marker group
+    markerGroup.add(arrow);
+    
+    // Store reference for cleanup
+    window.arrowObjects.push(arrow);
+    
+    console.log(`[AR Navigation] Arrow ${index} placed at:`, arrowPos.arCoords, 'bearing:', arrowPos.bearing);
+  });
+  
+  console.log(`[AR Navigation] Created ${arrowPositions.length} navigation arrows`);
+}
+
+// Clear existing AR arrows
+function clearArrowObjects() {
+  window.arrowObjects.forEach(arrow => {
+    if (arrow.parent) {
+      arrow.parent.remove(arrow);
+    }
+    // Dispose of geometry and material to free memory
+    if (arrow.geometry) arrow.geometry.dispose();
+    if (arrow.material) arrow.material.dispose();
+  });
+  window.arrowObjects = [];
+  console.log('[AR Navigation] Cleared all arrow objects');
+}
+
+// Main function to start AR navigation
+window.startNavigation = function(destination) {
+  console.log('[AR Navigation] Starting navigation to:', destination);
+  
+  // Stop any existing navigation
+  stopNavigation();
+  
+  // Get current path from dijkstra
+  if (!window.currentMarkerId) {
+    console.error('[AR Navigation] No current marker ID set');
+    return false;
+  }
+  
+  // Use the existing goTo function to calculate path, but intercept the result
+  const result = dijkstraForAR(window.currentMarkerId, destination);
+  
+  if (!result.path || result.path.length < 2) {
+    console.error('[AR Navigation] No valid path found for AR navigation');
+    return false;
+  }
+  
+  window.currentPath = result.path;
+  window.arNavigationActive = true;
+  
+  // Calculate arrow positions
+  const arrowPositions = calculateArrowPositions(result.path);
+  
+  if (arrowPositions.length === 0) {
+    console.warn('[AR Navigation] No arrow positions calculated');
+    return false;
+  }
+  
+  // Determine which marker to attach arrows to
+  let activeMarker = null;
+  if (window.markerRootHiro && window.markerRootHiro.visible) {
+    activeMarker = window.markerRootHiro;
+  } else if (window.markerRootKanji && window.markerRootKanji.visible) {
+    activeMarker = window.markerRootKanji;
+  }
+  
+  if (!activeMarker) {
+    console.warn('[AR Navigation] No active marker detected, using Hiro marker as default');
+    activeMarker = window.markerRootHiro;
+  }
+  
+  // Create arrow objects
+  createArrowObjects(arrowPositions, activeMarker);
+  
+  console.log(`[AR Navigation] Navigation started with ${arrowPositions.length} arrows`);
+  return true;
+};
+
+// Stop AR navigation
+window.stopNavigation = function() {
+  console.log('[AR Navigation] Stopping navigation');
+  clearArrowObjects();
+  window.arNavigationActive = false;
+  window.currentPath = null;
+};
+
+// Dijkstra implementation for AR (copied from leaflet.js)
+function dijkstraForAR(start, end) {
+  // Ensure we have the graph data
+  if (!window.extractedNodes || !window.extractedEdges || !window.nodeMap) {
+    console.error('[AR Navigation] Graph data not available');
+    return { path: null, distance: 0 };
+  }
+  
+  // Build graph if not already built
+  let graph = {};
+  window.extractedEdges.forEach(edge => {
+    const from = window.nodeMap[edge.from];
+    const to = window.nodeMap[edge.to];
+    if (from && to) {
+      if (!graph[from.id]) graph[from.id] = [];
+      if (!graph[to.id]) graph[to.id] = [];
+      const weight = Math.hypot(to.x - from.x, to.y - from.y);
+      graph[from.id].push({ node: to.id, weight });
+      graph[to.id].push({ node: from.id, weight });
+    }
+  });
+  
+  const distances = {}, previous = {}, queue = new Set(Object.keys(graph));
+  for (const node of queue) {
+    distances[node] = Infinity;
+    previous[node] = null;
+  }
+  distances[start] = 0;
+
+  while (queue.size > 0) {
+    let currentNode = null;
+    let minDistance = Infinity;
+    for (const node of queue) {
+      if (distances[node] < minDistance) {
+        minDistance = distances[node];
+        currentNode = node;
+      }
+    }
+
+    if (currentNode === end) break;
+    queue.delete(currentNode);
+
+    if (graph[currentNode]) {
       for (const neighbor of graph[currentNode]) {
         const alt = distances[currentNode] + neighbor.weight;
         if (alt < distances[neighbor.node]) {
@@ -236,234 +342,70 @@ class ARDirectionalNavigation {
         }
       }
     }
-
-    const path = [];
-    let curr = end;
-    while (curr) {
-      path.unshift(curr);
-      curr = previous[curr];
-    }
-
-    return {
-      distance: (distances[end] * 0.04254).toFixed(2), // Same scale factor as leaflet.js
-      path: distances[end] !== Infinity ? path : null
-    };
   }
 
-  startArrowUpdates() {
-    // Update arrows immediately
-    this.updateNavigationArrows();
-    
-    // Set interval for periodic updates
-    this.arrowUpdateInterval = setInterval(() => {
-      this.updateNavigationArrows();
-    }, this.arrowConfig.updateInterval);
+  const path = [];
+  let curr = end;
+  while (curr) {
+    path.unshift(curr);
+    curr = previous[curr];
   }
 
-  updateNavigationArrows() {
-    if (!this.isNavigating || !this.currentPath || this.currentStepIndex >= this.currentPath.length - 1) {
-      return;
-    }
-
-    // Clear existing arrows
-    this.clearArrows();
-
-    // Get next node in path
-    const nextNodeId = this.currentPath[this.currentStepIndex + 1];
-    const nextNode = window.nodeMap[nextNodeId];
-    
-    if (!nextNode) {
-      console.warn('[AR Navigation] Next node not found:', nextNodeId);
-      return;
-    }
-
-    // Create directional arrow pointing to next node
-    this.createDirectionalArrow(nextNode, nextNodeId);
-    
-    console.log(`[AR Navigation] Arrow updated, pointing to: ${nextNodeId}`);
-
-    // Check if close to next waypoint (you can adjust this threshold)
-    if (this.isCloseToWaypoint(nextNode)) {
-      console.log(`[AR Navigation] Approaching waypoint: ${nextNodeId}`);
-      this.advanceToNextStep();
-    }
-  }
-
-  createDirectionalArrow(targetNode, targetNodeId) {
-    // Create arrow geometry
-    const arrowGeometry = this.createArrowGeometry();
-    const arrowMaterial = new THREE.MeshBasicMaterial({
-      color: this.arrowConfig.color,
-      transparent: true,
-      opacity: this.arrowConfig.opacity
-    });
-
-    const arrow = new THREE.Mesh(arrowGeometry, arrowMaterial);
-
-    // Position arrow in front of camera
-    arrow.position.set(0, this.arrowConfig.height, -this.arrowConfig.distance);
-
-    // Calculate direction to target
-    const direction = this.calculateDirection(targetNode);
-    
-    // Rotate arrow to point in the right direction
-    if (direction !== null) {
-      arrow.rotation.y = direction;
-    }
-
-    // Add to arrow group
-    this.arrowGroup.add(arrow);
-
-    // Add floating animation
-    this.animateArrow(arrow);
-
-    // Add text label (optional)
-    this.addArrowLabel(arrow, targetNodeId);
-  }
-
-  createArrowGeometry() {
-    // Create a simple arrow shape pointing forward
-    const shape = new THREE.Shape();
-    const size = this.arrowConfig.size;
-    
-    // Arrow pointing forward (along negative Z)
-    shape.moveTo(0, size * 0.5);           // Top point
-    shape.lineTo(-size * 0.3, -size * 0.2); // Left back
-    shape.lineTo(-size * 0.1, -size * 0.2); // Left inner
-    shape.lineTo(-size * 0.1, -size * 0.5); // Left bottom
-    shape.lineTo(size * 0.1, -size * 0.5);  // Right bottom
-    shape.lineTo(size * 0.1, -size * 0.2);  // Right inner
-    shape.lineTo(size * 0.3, -size * 0.2);  // Right back
-    shape.lineTo(0, size * 0.5);            // Back to top
-
-    const geometry = new THREE.ExtrudeGeometry(shape, {
-      depth: 0.1,
-      bevelEnabled: false
-    });
-
-    return geometry;
-  }
-
-  calculateDirection(targetNode) {
-    if (!this.currentUserPosition || !window.nodeMap[this.currentUserPosition]) {
-      return 0;
-    }
-
-    const currentNode = window.nodeMap[this.currentUserPosition];
-    
-    // Calculate angle between current position and target
-    const dx = targetNode.x - currentNode.x;
-    const dy = targetNode.y - currentNode.y;
-    
-    // Convert to radians for AR coordinate system
-    let angle = Math.atan2(dx, dy);
-    
-    // Adjust for coordinate system differences if needed
-    return angle;
-  }
-
-  addArrowLabel(arrow, targetNodeId) {
-    // Create text geometry for label (optional feature)
-    try {
-      const loader = new THREE.FontLoader();
-      // Note: You might need to load a font first
-      // For now, we'll skip text labels to avoid font loading complexity
-      console.log(`[AR Navigation] Arrow pointing to: ${targetNodeId}`);
-    } catch (error) {
-      console.log('[AR Navigation] Text labels not available');
-    }
-  }
-
-  animateArrow(arrow) {
-    // Add subtle floating animation
-    const startY = arrow.position.y;
-    const animateFloat = () => {
-      if (arrow.parent) { // Check if arrow still exists
-        arrow.position.y = startY + Math.sin(Date.now() * 0.002) * 0.1;
-        requestAnimationFrame(animateFloat);
-      }
-    };
-    animateFloat();
-  }
-
-  clearArrows() {
-    // Remove all arrows from the group
-    while (this.arrowGroup.children.length > 0) {
-      const arrow = this.arrowGroup.children[0];
-      this.arrowGroup.remove(arrow);
-      
-      // Dispose of geometry and material to free memory
-      if (arrow.geometry) arrow.geometry.dispose();
-      if (arrow.material) arrow.material.dispose();
-    }
-  }
-
-  isCloseToWaypoint(waypoint) {
-    // Check if user is close to the waypoint
-    // This uses the userPosition from sensors.js if available
-    if (!window.userPosition) return false;
-    
-    const distance = Math.hypot(
-      waypoint.x - window.userPosition.x * window.scaleFactorX,
-      waypoint.y - (window.svgHeight - window.userPosition.y) * window.scaleFactorY
-    );
-    
-    // Threshold for considering "close" (adjust as needed)
-    const threshold = 20; // pixels in map coordinates
-    return distance < threshold;
-  }
-
-  advanceToNextStep() {
-    if (this.isNavigating && this.currentPath && this.currentStepIndex < this.currentPath.length - 1) {
-      this.currentStepIndex++;
-      console.log(`[AR Navigation] Advanced to step ${this.currentStepIndex}: ${this.currentPath[this.currentStepIndex]}`);
-      
-      // Check if reached destination
-      if (this.currentStepIndex >= this.currentPath.length - 1) {
-        console.log('[AR Navigation] Destination reached!');
-        this.stopNavigation();
-        
-        // Dispatch event for destination reached
-        const event = new CustomEvent('navigationComplete', {
-          detail: { destination: this.currentPath[this.currentPath.length - 1] }
-        });
-        document.dispatchEvent(event);
-      }
-    }
-  }
-
-  handleStepDetected() {
-    // Called when a step is detected by sensors
-    if (this.isNavigating) {
-      console.log('[AR Navigation] Step detected, updating navigation');
-      this.updateNavigationArrows();
-    }
-  }
-
-  // Public methods for external control
-  getCurrentPath() {
-    return this.currentPath;
-  }
-
-  getCurrentStep() {
-    return this.currentStepIndex;
-  }
-
-  getDestination() {
-    return this.destinationNodeId;
-  }
-
-  isCurrentlyNavigating() {
-    return this.isNavigating;
-  }
+  return {
+    distance: (distances[end] * SVG_TO_METER_SCALE).toFixed(2),
+    path: distances[end] !== Infinity ? path : null
+  };
 }
 
-// Initialize AR Navigation when DOM is ready
-document.addEventListener('DOMContentLoaded', () => {
-  // Wait a bit for other scripts to load
-  setTimeout(() => {
-    window.arNavigation = new ARDirectionalNavigation();
-    console.log('[AR Navigation] System initialized and ready');
-  }, 1000);
+// Update arrow visibility based on user position (optional enhancement)
+window.updateNavigationArrows = function() {
+  if (!window.arNavigationActive || !window.userPosition) return;
+  
+  // This could be enhanced to hide arrows that are behind the user
+  // or adjust arrow colors based on distance
+  console.log('[AR Navigation] Updating arrow visibility based on user position:', window.userPosition);
+};
+
+// Event listeners
+document.addEventListener('markerFound', (e) => {
+  console.log('[AR Navigation] Marker found:', e.detail.preset);
+  
+  // If navigation is active, update arrow positions to the newly detected marker
+  if (window.arNavigationActive && window.currentPath) {
+    const preset = e.detail.preset;
+    let newMarker = null;
+    
+    if (preset === 'hiro') {
+      newMarker = window.markerRootHiro;
+    } else if (preset === 'kanji') {
+      newMarker = window.markerRootKanji;
+    }
+    
+    if (newMarker && window.arrowObjects.length > 0) {
+      // Move arrows to the new marker
+      clearArrowObjects();
+      const arrowPositions = calculateArrowPositions(window.currentPath);
+      createArrowObjects(arrowPositions, newMarker);
+      console.log('[AR Navigation] Moved arrows to newly detected marker:', preset);
+    }
+  }
 });
 
+document.addEventListener('markerLost', (e) => {
+  console.log('[AR Navigation] Marker lost:', e.detail.preset);
+  // Arrows will become invisible automatically when marker is lost
+});
+
+// Initialize
+document.addEventListener('DOMContentLoaded', () => {
+  console.log('[AR Navigation] AR Navigation script loaded');
+});
+
+// Debug function
+window.debugArNavigation = function() {
+  console.log('[AR Navigation Debug] Active:', window.arNavigationActive);
+  console.log('[AR Navigation Debug] Current path:', window.currentPath);
+  console.log('[AR Navigation Debug] Arrow objects:', window.arrowObjects.length);
+  console.log('[AR Navigation Debug] User position:', window.userPosition);
+  console.log('[AR Navigation Debug] North offset:', window.north);
+};
