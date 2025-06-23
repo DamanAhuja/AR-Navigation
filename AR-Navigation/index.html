@@ -158,26 +158,35 @@
         sourceType: 'webcam'
       });
 
-      arToolkitSource.init(function onReady() {
-        onResize();
-      });
+     arToolkitSource.init(function onReady() {
+  onResize();
 
+  // Fix: Force another resize after short delay to ensure full-screen canvas
+  setTimeout(() => {
+    onResize();
+  }, 200); // 200ms delay is usually enough
+});
       // AR Toolkit Context
       arToolkitContext = new THREEx.ArToolkitContext({
         cameraParametersUrl: 'camera_para.dat',
         detectionMode: 'mono'
       });
 
-      arToolkitContext.init(function onCompleted() {
-        camera.projectionMatrix.copy(arToolkitContext.getProjectionMatrix());
-      });
+    arToolkitContext.init(function onCompleted() {
+  camera.projectionMatrix.copy(arToolkitContext.getProjectionMatrix());
+
+  // Extra resize to ensure proper alignment
+  setTimeout(() => {
+    onResize();
+  }, 200);
+});
 
       // Hiro Marker
       markerRootHiro = new THREE.Group();
       scene.add(markerRootHiro);
       new THREEx.ArMarkerControls(arToolkitContext, markerRootHiro, {
         type: 'pattern',
-        patternUrl: 'https://cdn.jsdelivr.net/gh/AR-js-org/AR.js/three.js/data/patt.hiro',
+        patternUrl: 'patt.hiro',
       });
 
       // Green cube for Hiro
@@ -193,7 +202,7 @@
       scene.add(markerRootKanji);
       new THREEx.ArMarkerControls(arToolkitContext, markerRootKanji, {
         type: 'pattern',
-        patternUrl: 'https://cdn.jsdelivr.net/gh/AR-js-org/AR.js/three.js/data/patt.kanji',
+        patternUrl: 'patt.kanji',
       });
 
       // Red sphere for Kanji
