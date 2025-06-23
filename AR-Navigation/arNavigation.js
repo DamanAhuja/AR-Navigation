@@ -53,25 +53,31 @@
   return arrow;
 }
 
+function drawArrowsBetween(fromNode, toNode) {
+  const segmentDistance = 100; // 1 meter in SVG units (if 100px = 1m)
+  const dx = toNode.x - fromNode.x;
+  const dy = toNode.y - fromNode.y;
+  const distance = Math.hypot(dx, dy);
+  const steps = Math.floor(distance / segmentDistance);
 
-  function drawArrowsBetween(fromNode, toNode) {
-    const from = svgToWorld(fromNode.x, fromNode.y);
-    const to = svgToWorld(toNode.x, toNode.y);
+  for (let i = 1; i <= steps; i++) {
+    const lerpX = fromNode.x + (dx * i / steps);
+    const lerpY = fromNode.y + (dy * i / steps);
 
-    const segmentLength = from.distanceTo(to);
-    const direction = new THREE.Vector3().subVectors(to, from).normalize();
+    // Convert to AR world coordinates
+    const worldX = (lerpX - window.worldOrigin.x) / 100;
+    const worldZ = (lerpY - window.worldOrigin.y) / 100;
 
-    const arrowCount = Math.floor(segmentLength / ARROW_SPACING_METERS);
+    const arrow = createArrowMesh();
+    arrow.position.set(worldX, 0, worldZ); // Y = 0 for flat ground
 
-    for (let j = 1; j <= arrowCount; j++) {
-      const position = new THREE.Vector3().addVectors(from, direction.clone().multiplyScalar(j * ARROW_SPACING_METERS));
-      const arrow = createArrowMesh();
-      arrow.position.copy(position);
-      arrow.lookAt(to);
-      window.markerRootHiro.add(arrow);
-      arrows.push(arrow);
-    }
+    scene.add(arrow); 
+    navArrows.push(arrow);
+
+    console.log(`[AR Navigation] Placed arrow at world: (${worldX.toFixed(2)}, 0, ${worldZ.toFixed(2)})`);
   }
+}
+
 
   function highlightNearestArrow() {
     if (!navActive || !window.userPosition || arrows.length === 0) return;
