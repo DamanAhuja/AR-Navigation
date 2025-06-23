@@ -238,14 +238,23 @@ window.startNavigation = function(destination) {
   // Stop any existing navigation
   stopNavigation();
   
-  // Get current path from dijkstra
+  // Check if current marker ID is set
   if (!window.currentMarkerId) {
     console.error('[AR Navigation] No current marker ID set');
     return false;
   }
   
-  // Use the existing goTo function to calculate path, but intercept the result
-  const result = dijkstraForAR(window.currentMarkerId, destination);
+  // Call the existing goTo function to calculate and draw the path on the map
+  if (typeof window.goTo === 'function') {
+    console.log(`[AR Navigation] Calling goTo function for destination: ${destination}`);
+    window.goTo(destination);
+  } else {
+    console.error('[AR Navigation] goTo function not available');
+    return false;
+  }
+  
+  // Get the calculated path - we need to access it from the dijkstra result
+  const result = getLastCalculatedPath(window.currentMarkerId, destination);
   
   if (!result.path || result.path.length < 2) {
     console.error('[AR Navigation] No valid path found for AR navigation');
@@ -291,15 +300,17 @@ window.stopNavigation = function() {
   window.currentPath = null;
 };
 
-// Dijkstra implementation for AR (copied from leaflet.js)
-function dijkstraForAR(start, end) {
-  // Ensure we have the graph data
+// Get the last calculated path (helper function to access dijkstra result)
+function getLastCalculatedPath(start, end) {
+  // This function replicates the dijkstra calculation to get the path
+  // but relies on the graph structure already built in leaflet.js
+  
   if (!window.extractedNodes || !window.extractedEdges || !window.nodeMap) {
     console.error('[AR Navigation] Graph data not available');
     return { path: null, distance: 0 };
   }
   
-  // Build graph if not already built
+  // Build graph structure (same as in leaflet.js)
   let graph = {};
   window.extractedEdges.forEach(edge => {
     const from = window.nodeMap[edge.from];
@@ -313,6 +324,7 @@ function dijkstraForAR(start, end) {
     }
   });
   
+  // Dijkstra algorithm (same as in leaflet.js)
   const distances = {}, previous = {}, queue = new Set(Object.keys(graph));
   for (const node of queue) {
     distances[node] = Infinity;
