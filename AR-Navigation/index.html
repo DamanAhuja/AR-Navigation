@@ -144,6 +144,7 @@
     }
 
     async function initWebXR() {
+ console.log("initWebXR() called");
       if (!navigator.xr) {
         console.warn('WebXR not supported');
         return;
