@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>AR + Map + Hidden SVG + Multiple Markers</title>
+  <script>
+    window.DeviceParamsDB = function() {
+      this.getDeviceParams = function() {
+        console.log('DeviceParamsDB.getDeviceParams called, returning null to prevent dpdb.json fetch');
+        return null;
+      };
+      this.fetchDeviceParams_ = function() {
+        console.log('DeviceParamsDB.fetchDeviceParams_ called, doing nothing to prevent dpdb.json fetch');
+      };
+    };
+  </script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/choices.js/public/assets/scripts/choices.min.js"></script>
+  <script src="sensors.js"></script> <!-- Add sensors.js -->
+  <script src="choices.js"></script>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      position: relative;
+    }
+    #routing-ui {
+      position: fixed;
+      top: 10px;
+      left: 10px;
+      right: 10px;
+      z-index: 1000;
+      background: rgba(255,255,255,0.9);
+      padding: 10px;
+      border-radius: 10px;
+      display: flex !important;
+      visibility: visible !important;
+      align-items: center;
+      justify-content: center;
+      gap: 15px;
+      max-width: 500px;
+      margin: 0 auto;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.25);
+      border: 2px solid red; /* For debugging */
+    }
+    #destinationDropdown {
+      width: 300px;
+    }
+    #routing-ui button {
+      padding: 8px 15px;
+      font-size: 16px;
+      background-color: #1976d2;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+    #routing-ui button:hover {
+      background-color: #1259a6;
+    }
+    #map {
+      position: fixed;
+      bottom: 10px;
+      left: 10px;
+      width: 40%;
+      max-width: 300px;
+      height: 40%;
+      max-height: 300px;
+      border: 2px solid white;
+      border-radius: 5px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.5);
+      z-index: 999;
+      display: block !important;
+      visibility: visible !important;
+    }
+    #svgObject {
+      position: absolute;
+      top: 0;
+      left: -9999px;
+      width: 600px;
+      height: 900px;
+      border-left: 1px solid #ccc;
+      opacity: 0;
+      z-index: 0;
+      visibility: hidden;
+    }
+    #arCanvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: 10;
+    }
+    .container {
+      width: 100%;
+      height: 100%;
+      position: relative;
+      z-index: 998;
+    }
+  </style>
+</head>
+<body>
+  <div id="routing-ui">
+    <select id="destinationDropdown" class="choices"></select>
+    <button onclick="routeToDestination()">Go</button>
+  </div>
+  <div class="container">
+    <div id="map"></div>
+    <object id="svgObject" type="image/svg+xml" data="RDSC.svg"></object>
+  </div>
+
+  <canvas id="arCanvas"></canvas>
+
+  <script src="svg.js"></script>
+  <script src="leaflet.js"></script>
+  <script src="MarkerHandler.js"></script>
+  <script src="arNavigation.js"></script>
+  <script>
+    let scene, camera, renderer, arSession;
+
+    function initThreeJS() {
+      // Create scene
+      scene = new THREE.Scene();
+
+      // Create camera
+      camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+
+      // Create renderer
+      const canvas = document.getElementById('arCanvas');
+      renderer = new THREE.WebGLRenderer({ canvas: canvas, alpha: true });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setPixelRatio(window.devicePixelRatio);
+      renderer.xr.enabled = true;
+
+      console.log('Three.js initialized');
+    }
+
+    async function initWebXR() {
+      if (!navigator.xr) {
+        console.warn('WebXR not supported');
+        return;
+      }
+
+      try {
+        const isSupported = await navigator.xr.isSessionSupported('immersive-ar');
+        if (!isSupported) {
+          console.warn('Immersive AR not supported');
+          return;
+        }
+
+        console.log('WebXR AR supported, initializing session...');
+        
+        arSession = await navigator.xr.requestSession('immersive-ar', {
+          requiredFeatures: ['local'],
+          optionalFeatures: ['hit-test']
+        });
+
+        await renderer.xr.setSession(arSession);
+        console.log('WebXR AR session initialized');
+
+        // Start render loop
+        renderer.setAnimationLoop(render);
+
+      } catch (error) {
+        console.error('WebXR initialization failed:', error);
+      }
+    }
+
+    function render() {
+      renderer.render(scene, camera);
+    }
+
+    function onWindowResize() {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      initThreeJS();
+      initWebXR();
+
+      const mapDiv = document.getElementById('map');
+      if (!mapDiv) {
+        console.error('Map div not found');
+      } else {
+        console.log('Map div found');
+      }
+
+      window.addEventListener('resize', onWindowResize);
+    });
+  </script>
+</body>
+</html>
