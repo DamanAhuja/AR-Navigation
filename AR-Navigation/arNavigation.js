@@ -8,7 +8,7 @@
 
   // Clear existing arrows from scene
   function clearNavigation() {
-    arrows.forEach(a => window.markerRootHiro.remove(a));
+     arrows.forEach(a => scene.remove(a));
     arrows = [];
     pathNodes = [];
     navActive = false;
@@ -54,6 +54,7 @@
 }
 
 function drawArrowsBetween(fromNode, toNode) {
+    console.log("[AR] Drawing arrows from", fromNode, "to", toNode);
   const segmentDistance = 100; // 1 meter in SVG units (if 100px = 1m)
   const dx = toNode.x - fromNode.x;
   const dy = toNode.y - fromNode.y;
