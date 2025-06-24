@@ -87,14 +87,12 @@ function drawArrowsBetween(fromNode, toNode) {
 
     arrow.position.set(worldX, 0, worldZ);
 
-    // Make sure to use the correct scene parent
-    const parent = window.markerRootHiro || window.markerRoot || scene;
-    if (!parent) {
-      console.error('[AR] No valid parent to attach arrow to');
-      continue;
-    }
+   if (typeof scene !== 'undefined') {
+  scene.add(arrow);
+} else {
+  console.warn('[AR Navigation] Scene is undefined. Arrow not added.');
+}
 
-    parent.add(arrow);
     arrows.push(arrow);
 
     console.log(`[AR Navigation] Placed arrow at world: (${worldX.toFixed(2)}, 0, ${worldZ.toFixed(2)})`);
