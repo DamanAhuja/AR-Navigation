@@ -1,165 +1,108 @@
 (() => {
-  const ARROW_SPACING_METERS = 1;  // Place arrow every 1m
-  const SVG_TO_METERS = 0.01;       // 1 SVG unit = 0.1 meters
+  const ARROW_SPACING_METERS = 1;      // Place one arrow every 1m
+  const SVG_TO_METERS = 0.01;          // 1 SVG unit = 1cm
 
   let arrows = [];
   let pathNodes = [];
   let navActive = false;
 
-  // Clear existing arrows from scene
   function clearNavigation() {
-     arrows.forEach(a => scene.remove(a));
+    arrows.forEach(a => scene.remove(a));
     arrows = [];
     pathNodes = [];
     navActive = false;
     console.log('[AR Navigation] Navigation cleared');
   }
 
-  // Converts SVG coords → AR world coords (relative to marker anchor)
   function svgToWorld(svgX, svgY) {
     const dx = svgX - window.userPosition.x;
     const dy = svgY - window.userPosition.y;
 
-    const angleOffset = getNorthOffset() * Math.PI / 180;
+    const angleRad = getNorthOffset() * Math.PI / 180;
 
     const xMeters = dx * SVG_TO_METERS;
     const zMeters = -dy * SVG_TO_METERS;
 
-    const rotatedX = xMeters * Math.cos(angleOffset) - zMeters * Math.sin(angleOffset);
-    const rotatedZ = xMeters * Math.sin(angleOffset) + zMeters * Math.cos(angleOffset);
+    const rotatedX = xMeters * Math.cos(angleRad) - zMeters * Math.sin(angleRad);
+    const rotatedZ = xMeters * Math.sin(angleRad) + zMeters * Math.cos(angleRad);
 
     return new THREE.Vector3(rotatedX, 0, rotatedZ);
   }
 
   function createArrowMesh() {
-  try {
-    const shaft = new THREE.CylinderGeometry(0.03, 0.03, 0.6, 8);
-    const head = new THREE.ConeGeometry(0.1, 0.2, 8);
+    try {
+      const shaft = new THREE.CylinderGeometry(0.03, 0.03, 0.6, 8);
+      const head = new THREE.ConeGeometry(0.1, 0.2, 8);
 
-    const shaftMaterial = new THREE.MeshBasicMaterial({ color: 0x1976d2 });
-    const headMaterial = new THREE.MeshBasicMaterial({ color: 0xff5722 });
+      const shaftMaterial = new THREE.MeshBasicMaterial({ color: 0x1976d2 });
+      const headMaterial = new THREE.MeshBasicMaterial({ color: 0xff5722 });
 
-    const shaftMesh = new THREE.Mesh(shaft, shaftMaterial);
-    const headMesh = new THREE.Mesh(head, headMaterial);
+      const shaftMesh = new THREE.Mesh(shaft, shaftMaterial);
+      const headMesh = new THREE.Mesh(head, headMaterial);
 
-    shaftMesh.position.y = 0.3;
-    headMesh.position.y = 0.7;
+      shaftMesh.position.y = 0.3;
+      headMesh.position.y = 0.7;
 
-    const arrow = new THREE.Group();
-    arrow.add(shaftMesh);
-    arrow.add(headMesh);
+      const arrow = new THREE.Group();
+      arrow.add(shaftMesh);
+      arrow.add(headMesh);
 
-    arrow.rotation.x = Math.PI / 2;
+      arrow.rotation.x = Math.PI / 2;
 
-    console.log('[AR Arrow] Created arrow mesh:', arrow);
-    return arrow;
-  } catch (err) {
-    console.error('[AR Arrow] Failed to create arrow mesh:', err);
-    return null;
-  }
-}
-function drawArrowsBetween(fromNode, toNode) {
-  console.log("[AR] Drawing arrows from", fromNode, "to", toNode);
-
-  const SVG_TO_METERS = 0.01;             // ← confirm this value from your setup
-  const ARROW_SPACING_METERS = 1;        // Place arrow every 1 meter
-
-  const dx = toNode.x - fromNode.x;
-  const dy = toNode.y - fromNode.y;
-  const distanceSVG = Math.hypot(dx, dy);
-  const distanceMeters = distanceSVG * SVG_TO_METERS;
-  const steps = Math.floor(distanceMeters / ARROW_SPACING_METERS);
-
-  console.log(`[AR] Total distance: ${distanceMeters.toFixed(2)} m, steps: ${steps}`);
-
-  if (steps === 0) {
-    console.warn('[AR] Too close to draw arrows. Skipping.');
-    return;
+      return arrow;
+    } catch (err) {
+      console.error('[AR Arrow] Failed to create arrow mesh:', err);
+      return null;
+    }
   }
 
-  for (let i = 1; i <= steps; i++) {
-    const lerpX = fromNode.x + (dx * i / steps);
-    const lerpY = fromNode.y + (dy * i / steps);
+  function drawArrowsBetween(fromNode, toNode) {
+    console.log("[AR] Drawing arrows from", fromNode, "to", toNode);
 
-    const worldX = (lerpX - window.worldOrigin.x) / 100;
-    const worldZ = (lerpY - window.worldOrigin.y) / 100;
+    const dx = toNode.x - fromNode.x;
+    const dy = toNode.y - fromNode.y;
+    const distanceSVG = Math.hypot(dx, dy);
+    const distanceMeters = distanceSVG * SVG_TO_METERS;
+    const steps = Math.floor(distanceMeters / ARROW_SPACING_METERS);
 
-    const arrow = createArrowMesh();
-    if (!arrow) continue;
+    console.log(`[AR] Total distance: ${distanceMeters.toFixed(2)} m, steps: ${steps}`);
 
-    arrow.position.set(worldX, 0, worldZ);
-
-    if (typeof scene !== 'undefined') {
-      scene.add(arrow);
-    } else {
-      console.warn('[AR Navigation] Scene is undefined. Arrow not added.');
+    if (steps === 0) {
+      console.warn('[AR] Too close to draw arrows. Skipping.');
+      return;
     }
 
-    arrows.push(arrow);
-    console.log(`[AR Navigation] Placed arrow at world: (${worldX.toFixed(2)}, 0, ${worldZ.toFixed(2)})`);
+    for (let i = 1; i <= steps; i++) {
+      const lerpX = fromNode.x + (dx * i / steps);
+      const lerpY = fromNode.y + (dy * i / steps);
+
+      const worldPos = svgToWorld(lerpX, lerpY);
+      const arrow = createArrowMesh();
+      if (!arrow) continue;
+
+      arrow.position.copy(worldPos);
+
+      if (typeof scene !== 'undefined') {
+        scene.add(arrow);
+      } else {
+        console.warn('[AR Navigation] Scene is undefined. Arrow not added.');
+      }
+
+      arrows.push(arrow);
+      console.log(`[AR Navigation] Placed arrow at world: (${worldPos.x.toFixed(2)}, 0, ${worldPos.z.toFixed(2)})`);
+    }
+
+    console.log(`[AR Navigation] Total arrows placed: ${arrows.length}`);
   }
-
-  console.log(`[AR Navigation] Total arrows placed: ${arrows.length}`);
-}
-
-  // Create a simple arrow mesh (shaft + head)
-/* function createArrowMesh() {
-  const shaft = new THREE.CylinderGeometry(0.03, 0.03, 0.6, 8);
-  const head = new THREE.ConeGeometry(0.1, 0.2, 8);
-
-  const shaftMesh = new THREE.Mesh(shaft, new THREE.MeshBasicMaterial({ color: 0x1976d2 }));
-  const headMesh = new THREE.Mesh(head, new THREE.MeshBasicMaterial({ color: 0xff5722 }));
-
-  shaftMesh.position.y = 0.3;
-  headMesh.position.y = 0.7;
-
-  const arrow = new THREE.Group();
-  arrow.add(shaftMesh);
-  arrow.add(headMesh);
-
-  arrow.rotation.x = Math.PI / 2;
-
-  console.log('[AR Arrow] Created arrow mesh');
-
-  return arrow;
-}
-
-function drawArrowsBetween(fromNode, toNode) {
-    console.log("[AR] Drawing arrows from", fromNode, "to", toNode);
-  const segmentDistance = 100; // 1 meter in SVG units (if 100px = 1m)
-  const dx = toNode.x - fromNode.x;
-  const dy = toNode.y - fromNode.y;
-  const distance = Math.hypot(dx, dy);
-  const steps = Math.floor(distance / segmentDistance);
-
-  for (let i = 1; i <= steps; i++) {
-    const lerpX = fromNode.x + (dx * i / steps);
-    const lerpY = fromNode.y + (dy * i / steps);
-
-    // Convert to AR world coordinates
-    const worldX = (lerpX - window.worldOrigin.x) / 100;
-    const worldZ = (lerpY - window.worldOrigin.y) / 100;
-
-    const arrow = createArrowMesh();
-    arrow.position.set(worldX, 0, worldZ); // Y = 0 for flat ground
-
-    scene.add(arrow); 
-    arrows.push(arrow);
-
-    console.log(`[AR Navigation] Placed arrow at world: (${worldX.toFixed(2)}, 0, ${worldZ.toFixed(2)})`);
-  }
-}*/
-
 
   function highlightNearestArrow() {
     if (!navActive || !window.userPosition || arrows.length === 0) return;
 
-    const userWorldPos = new THREE.Vector3(0, 0, 0); // User is always at origin in AR scene
+    const userWorldPos = new THREE.Vector3(0, 0, 0); // user is at world origin in AR
 
-    arrows.forEach((arrow, idx) => {
+    arrows.forEach(arrow => {
       const dist = arrow.position.distanceTo(userWorldPos);
-      const color = arrow.children[1].material.color;
-      color.set(dist < 1.5 ? 0xffff00 : 0xff5722); // Highlight in yellow if close
+      arrow.children[1].material.color.set(dist < 1.5 ? 0xffff00 : 0xff5722);
     });
   }
 
@@ -173,7 +116,7 @@ function drawArrowsBetween(fromNode, toNode) {
     }
 
     const pathResult = window.goTo(destinationId);
-    if (!pathResult || !pathResult.path || pathResult.path.length < 2) {
+    if (!pathResult?.path || pathResult.path.length < 2) {
       console.warn('[AR Navigation] Invalid path');
       alert('No path found.');
       return;
@@ -189,11 +132,7 @@ function drawArrowsBetween(fromNode, toNode) {
     console.log(`[AR Navigation] Navigation started to ${destinationId}`);
   };
 
-  // Update arrow highlight every second
   setInterval(() => {
-    if (navActive) {
-      highlightNearestArrow();
-    }
+    if (navActive) highlightNearestArrow();
   }, 1000);
-
 })();
