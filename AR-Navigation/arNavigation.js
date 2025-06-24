@@ -1,6 +1,6 @@
 (() => {
   const ARROW_SPACING_METERS = 1;  // Place arrow every 1m
-  const SVG_TO_METERS = 0.1;       // 1 SVG unit = 0.1 meters
+  const SVG_TO_METERS = 0.01;       // 1 SVG unit = 0.1 meters
 
   let arrows = [];
   let pathNodes = [];
@@ -61,7 +61,7 @@
 function drawArrowsBetween(fromNode, toNode) {
   console.log("[AR] Drawing arrows from", fromNode, "to", toNode);
 
-  const SVG_TO_METERS = 0.1;             // ← confirm this value from your setup
+  const SVG_TO_METERS = 0.01;             // ← confirm this value from your setup
   const ARROW_SPACING_METERS = 1;        // Place arrow every 1 meter
 
   const dx = toNode.x - fromNode.x;
