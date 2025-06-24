@@ -61,11 +61,16 @@
 function drawArrowsBetween(fromNode, toNode) {
   console.log("[AR] Drawing arrows from", fromNode, "to", toNode);
 
-  const segmentDistance = 100; // 1 meter in SVG units
+  const SVG_TO_METERS = 0.1;             // ← confirm this value from your setup
+  const ARROW_SPACING_METERS = 1;        // Place arrow every 1 meter
+
   const dx = toNode.x - fromNode.x;
   const dy = toNode.y - fromNode.y;
-  const distance = Math.hypot(dx, dy);
-  const steps = Math.floor(distance / segmentDistance);
+  const distanceSVG = Math.hypot(dx, dy);
+  const distanceMeters = distanceSVG * SVG_TO_METERS;
+  const steps = Math.floor(distanceMeters / ARROW_SPACING_METERS);
+
+  console.log(`[AR] Total distance: ${distanceMeters.toFixed(2)} m, steps: ${steps}`);
 
   if (steps === 0) {
     console.warn('[AR] Too close to draw arrows. Skipping.');
@@ -80,21 +85,17 @@ function drawArrowsBetween(fromNode, toNode) {
     const worldZ = (lerpY - window.worldOrigin.y) / 100;
 
     const arrow = createArrowMesh();
-    if (!arrow) {
-      console.warn(`[AR] Failed to create arrow at step ${i}`);
-      continue;
-    }
+    if (!arrow) continue;
 
     arrow.position.set(worldX, 0, worldZ);
 
-   if (typeof scene !== 'undefined') {
-  scene.add(arrow);
-} else {
-  console.warn('[AR Navigation] Scene is undefined. Arrow not added.');
-}
+    if (typeof scene !== 'undefined') {
+      scene.add(arrow);
+    } else {
+      console.warn('[AR Navigation] Scene is undefined. Arrow not added.');
+    }
 
     arrows.push(arrow);
-
     console.log(`[AR Navigation] Placed arrow at world: (${worldX.toFixed(2)}, 0, ${worldZ.toFixed(2)})`);
   }
 
