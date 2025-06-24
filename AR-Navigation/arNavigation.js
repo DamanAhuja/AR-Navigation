@@ -31,8 +31,80 @@
     return new THREE.Vector3(rotatedX, 0, rotatedZ);
   }
 
+  function createArrowMesh() {
+  try {
+    const shaft = new THREE.CylinderGeometry(0.03, 0.03, 0.6, 8);
+    const head = new THREE.ConeGeometry(0.1, 0.2, 8);
+
+    const shaftMaterial = new THREE.MeshBasicMaterial({ color: 0x1976d2 });
+    const headMaterial = new THREE.MeshBasicMaterial({ color: 0xff5722 });
+
+    const shaftMesh = new THREE.Mesh(shaft, shaftMaterial);
+    const headMesh = new THREE.Mesh(head, headMaterial);
+
+    shaftMesh.position.y = 0.3;
+    headMesh.position.y = 0.7;
+
+    const arrow = new THREE.Group();
+    arrow.add(shaftMesh);
+    arrow.add(headMesh);
+
+    arrow.rotation.x = Math.PI / 2;
+
+    console.log('[AR Arrow] Created arrow mesh:', arrow);
+    return arrow;
+  } catch (err) {
+    console.error('[AR Arrow] Failed to create arrow mesh:', err);
+    return null;
+  }
+}
+function drawArrowsBetween(fromNode, toNode) {
+  console.log("[AR] Drawing arrows from", fromNode, "to", toNode);
+
+  const segmentDistance = 100; // 1 meter in SVG units
+  const dx = toNode.x - fromNode.x;
+  const dy = toNode.y - fromNode.y;
+  const distance = Math.hypot(dx, dy);
+  const steps = Math.floor(distance / segmentDistance);
+
+  if (steps === 0) {
+    console.warn('[AR] Too close to draw arrows. Skipping.');
+    return;
+  }
+
+  for (let i = 1; i <= steps; i++) {
+    const lerpX = fromNode.x + (dx * i / steps);
+    const lerpY = fromNode.y + (dy * i / steps);
+
+    const worldX = (lerpX - window.worldOrigin.x) / 100;
+    const worldZ = (lerpY - window.worldOrigin.y) / 100;
+
+    const arrow = createArrowMesh();
+    if (!arrow) {
+      console.warn(`[AR] Failed to create arrow at step ${i}`);
+      continue;
+    }
+
+    arrow.position.set(worldX, 0, worldZ);
+
+    // Make sure to use the correct scene parent
+    const parent = window.markerRootHiro || window.markerRoot || scene;
+    if (!parent) {
+      console.error('[AR] No valid parent to attach arrow to');
+      continue;
+    }
+
+    parent.add(arrow);
+    arrows.push(arrow);
+
+    console.log(`[AR Navigation] Placed arrow at world: (${worldX.toFixed(2)}, 0, ${worldZ.toFixed(2)})`);
+  }
+
+  console.log(`[AR Navigation] Total arrows placed: ${arrows.length}`);
+}
+
   // Create a simple arrow mesh (shaft + head)
- function createArrowMesh() {
+/* function createArrowMesh() {
   const shaft = new THREE.CylinderGeometry(0.03, 0.03, 0.6, 8);
   const head = new THREE.ConeGeometry(0.1, 0.2, 8);
 
@@ -77,7 +149,7 @@ function drawArrowsBetween(fromNode, toNode) {
 
     console.log(`[AR Navigation] Placed arrow at world: (${worldX.toFixed(2)}, 0, ${worldZ.toFixed(2)})`);
   }
-}
+}*/
 
 
   function highlightNearestArrow() {
