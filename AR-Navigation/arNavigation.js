@@ -1,39 +1,37 @@
 (() => {
-  const ARROW_SPACING_METERS = 1;     // Place one arrow every 1m
-  const SVG_TO_METERS = 0.01;         // 1 SVG unit = 1cm = 0.01m
+  const ARROW_SPACING_METERS = 1;
+  const SVG_TO_METERS = 0.01; // 1 SVG unit = 1cm (adjust if needed)
 
   let arrows = [];
   let pathNodes = [];
   let navActive = false;
 
   function clearNavigation() {
-    arrows.forEach(a => scene.remove(a));
+    arrows.forEach(a => scene?.remove(a));
     arrows = [];
     pathNodes = [];
     navActive = false;
     console.log('[AR Navigation] Navigation cleared');
   }
 
-  // Convert SVG map position to AR world space (based on initial marker position and north angle)
   function svgToWorld(svgX, svgY) {
-    if (!window.userPosition || !window.worldOrigin) {
-      console.warn('[AR] Missing userPosition or worldOrigin');
+    if (!window.worldOrigin || !window.userPosition) {
+      console.warn('[AR Navigation] Missing worldOrigin or userPosition');
       return new THREE.Vector3(0, 0, 0);
     }
 
     const dx = svgX - window.worldOrigin.x;
     const dy = svgY - window.worldOrigin.y;
 
-    const angleRad = getNorthOffset() * Math.PI / 180;
+    const angleRad = (getNorthOffset() || 0) * Math.PI / 180;
 
     const xMeters = dx * SVG_TO_METERS;
-    const zMeters = dy * SVG_TO_METERS; // +Z is forward on map
+    const zMeters = -dy * SVG_TO_METERS;
 
-    // Rotate around origin using north offset
     const rotatedX = xMeters * Math.cos(angleRad) - zMeters * Math.sin(angleRad);
     const rotatedZ = xMeters * Math.sin(angleRad) + zMeters * Math.cos(angleRad);
 
-    return new THREE.Vector3(rotatedX, 0, -rotatedZ); // AR uses -Z forward
+    return new THREE.Vector3(rotatedX, 0, rotatedZ);
   }
 
   function createArrowMesh() {
@@ -54,7 +52,7 @@
       arrow.add(shaftMesh);
       arrow.add(headMesh);
 
-      arrow.rotation.x = Math.PI / 2;
+      arrow.rotation.x = Math.PI / 2; // Point it along +Z in world
 
       return arrow;
     } catch (err) {
@@ -82,8 +80,8 @@
     for (let i = 1; i <= steps; i++) {
       const lerpX = fromNode.x + (dx * i / steps);
       const lerpY = fromNode.y + (dy * i / steps);
-
       const worldPos = svgToWorld(lerpX, lerpY);
+
       const arrow = createArrowMesh();
       if (!arrow) continue;
 
@@ -93,10 +91,11 @@
         scene.add(arrow);
       } else {
         console.warn('[AR Navigation] Scene is undefined. Arrow not added.');
+        continue;
       }
 
       arrows.push(arrow);
-      console.log(`[AR Navigation] Placed arrow at world: (${worldPos.x.toFixed(2)}, 0, ${worldPos.z.toFixed(2)})`);
+      console.log(`[AR Navigation] Placed arrow at (${worldPos.x.toFixed(2)}, 0, ${worldPos.z.toFixed(2)})`);
     }
 
     console.log(`[AR Navigation] Total arrows placed: ${arrows.length}`);
@@ -105,7 +104,7 @@
   function highlightNearestArrow() {
     if (!navActive || !window.userPosition || arrows.length === 0) return;
 
-    const userWorldPos = new THREE.Vector3(0, 0, 0); // user is at world origin in AR
+    const userWorldPos = new THREE.Vector3(0, 0, 0); // Always origin in AR space
 
     arrows.forEach(arrow => {
       const dist = arrow.position.distanceTo(userWorldPos);
