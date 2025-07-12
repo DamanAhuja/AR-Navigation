@@ -16,8 +16,8 @@
 
   // Convert SVG map position to AR world space (based on initial marker position and north angle)
   function svgToWorld(svgX, svgY) {
-    if (!window.userPosition || !window.worldOrigin) {
-      console.warn('[AR] Missing userPosition or worldOrigin');
+    if (!window.worldOrigin || !window.worldOrigin.worldPosition) {
+      console.warn('[AR] Missing world origin or anchor world position');
       return new THREE.Vector3(0, 0, 0);
     }
 
@@ -27,13 +27,20 @@
     const angleRad = getNorthOffset() * Math.PI / 180;
 
     const xMeters = dx * SVG_TO_METERS;
-    const zMeters = dy * SVG_TO_METERS; // +Z is forward on map
+    const zMeters = dy * SVG_TO_METERS;
 
-    // Rotate around origin using north offset
+    // Rotate relative offset
     const rotatedX = xMeters * Math.cos(angleRad) - zMeters * Math.sin(angleRad);
     const rotatedZ = xMeters * Math.sin(angleRad) + zMeters * Math.cos(angleRad);
 
-    return new THREE.Vector3(rotatedX, 0, -rotatedZ); // AR uses -Z forward
+    const origin = window.worldOrigin.worldPosition;
+
+    // Apply world origin position (AR anchor point)
+    return new THREE.Vector3(
+      origin.x + rotatedX,
+      origin.y, // preserve AR anchor's Y height
+      origin.z - rotatedZ // negate Z because AR uses -Z forward
+    );
   }
 
   function createArrowMesh() {
