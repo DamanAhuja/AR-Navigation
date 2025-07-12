@@ -3,6 +3,9 @@ document.addEventListener('markerFound', (e) => {
   const svgNodes = window.extractedNodes || [];
   let markerId;
 
+  window.markerMap = window.markerMap || {};
+  window.markerMap[preset] = markerGroup;
+  
   // Map preset to node ID
   if (preset === 'hiro') markerId = svgNodes[0]?.id;
   else if (preset === 'kanji') markerId = svgNodes[1]?.id;
