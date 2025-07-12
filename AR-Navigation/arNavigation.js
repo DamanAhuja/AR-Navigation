@@ -20,7 +20,7 @@
       console.warn('[AR] Missing world origin or anchor world position');
       return new THREE.Vector3(0, 0, 0);
     }
-
+    window.svgToWorld = svgToWorld;
     const dx = svgX - window.worldOrigin.x;
     const dy = svgY - window.worldOrigin.y;
 
