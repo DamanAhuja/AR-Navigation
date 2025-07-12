@@ -17,6 +17,8 @@ document.addEventListener('markerFound', (e) => {
     const markerGroup = window.markerMap?.[preset];
 
     if (match && markerGroup) {
+      console.log('[DEBUG] Marker world position:', markerGroup.position); // <-- Inserted log here
+
       window.worldOrigin = {
         x: match.x,
         y: match.y,
@@ -27,6 +29,7 @@ document.addEventListener('markerFound', (e) => {
     } else {
       console.warn('[AR] Failed to set world origin - match or markerGroup not found');
     }
+
   } else if (window.worldOrigin) {
     console.log('[AR] World origin already set. Skipping update.');
   }
