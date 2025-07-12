@@ -14,34 +14,44 @@
     console.log('[AR Navigation] Navigation cleared');
   }
 
-  // Convert SVG map position to AR world space (based on initial marker position and north angle)
-  function svgToWorld(svgX, svgY) {
-    if (!window.worldOrigin || !window.worldOrigin.worldPosition) {
-      console.warn('[AR] Missing world origin or anchor world position');
-      return new THREE.Vector3(0, 0, 0);
-    }
-    window.svgToWorld = svgToWorld;
-    const dx = svgX - window.worldOrigin.x;
-    const dy = svgY - window.worldOrigin.y;
-
-    const angleRad = getNorthOffset() * Math.PI / 180;
-
-    const xMeters = dx * SVG_TO_METERS;
-    const zMeters = dy * SVG_TO_METERS;
-
-    // Rotate relative offset
-    const rotatedX = xMeters * Math.cos(angleRad) - zMeters * Math.sin(angleRad);
-    const rotatedZ = xMeters * Math.sin(angleRad) + zMeters * Math.cos(angleRad);
-
-    const origin = window.worldOrigin.worldPosition;
-
-    // Apply world origin position (AR anchor point)
-    return new THREE.Vector3(
-      origin.x + rotatedX,
-      origin.y, // preserve AR anchor's Y height
-      origin.z - rotatedZ // negate Z because AR uses -Z forward
-    );
+ // Convert SVG map position to AR world space (based on initial marker position and north angle)
+function svgToWorld(svgX, svgY) {
+  if (!window.worldOrigin || !window.worldOrigin.worldPosition) {
+    console.warn('[AR] Missing world origin or anchor world position');
+    return new THREE.Vector3(0, 0, 0);
   }
+
+  const dx = svgX - window.worldOrigin.x;
+  const dy = svgY - window.worldOrigin.y;
+
+  const angleRad = getNorthOffset() * Math.PI / 180;
+
+  const xMeters = dx * SVG_TO_METERS;
+  const zMeters = dy * SVG_TO_METERS;
+
+  // Rotate relative offset
+  const rotatedX = xMeters * Math.cos(angleRad) - zMeters * Math.sin(angleRad);
+  const rotatedZ = xMeters * Math.sin(angleRad) + zMeters * Math.cos(angleRad);
+
+  // Clone origin so we don't accidentally mutate it
+  const origin = window.worldOrigin.worldPosition.clone();
+
+  // Try to use live marker Y if available
+  const liveMarker = window.markerMap?.hiro;
+  if (liveMarker) {
+    origin.y = liveMarker.position.y;
+  }
+
+  // Apply world origin position (AR anchor point)
+  return new THREE.Vector3(
+    origin.x + rotatedX,
+    origin.y, // Now updated with live marker Y if available
+    origin.z - rotatedZ // negate Z because AR uses -Z forward
+  );
+}
+
+// Expose globally
+window.svgToWorld = svgToWorld;
 
   function createArrowMesh() {
     try {
