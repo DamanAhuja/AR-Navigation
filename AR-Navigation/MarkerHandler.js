@@ -25,6 +25,12 @@ document.addEventListener('markerFound', (e) => {
         worldPosition: markerGroup.position.clone(),
         rotationY: markerGroup.rotation.y || 0
       };
+
+      const svgX = match.x;
+      const svgY = match.y;
+      const converted = svgToWorld(svgX, svgY);
+      console.log('[DEBUG] Converted world from SVG:', converted); 
+     
       console.log('[AR] World origin set:', window.worldOrigin);
     } else {
       console.warn('[AR] Failed to set world origin - match or markerGroup not found');
