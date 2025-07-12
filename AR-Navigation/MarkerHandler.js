@@ -9,33 +9,25 @@ document.addEventListener('markerFound', (e) => {
 
   console.log("Detected marker:", preset, "-> Marker ID:", markerId);
 
-   // Update userPosition in sensors.js
-   /* const match = window.nodeMap[markerId];
-    if (match) {
-      window.userPosition = {
-        x: match.x / window.scaleFactorX,
-        y: window.svgHeight - (match.y / window.scaleFactorY)
-      };
-      window.stepCount = 0; // Reset step count
-      console.log('Reset userPosition:', window.userPosition);
-    }*/
-
-  if (markerId && typeof window.setUserLocation === 'function') {
+  // Only update world origin once
+  if (!window.worldOrigin && markerId && typeof window.setUserLocation === 'function') {
     window.setUserLocation(markerId);
 
     const match = window.nodeMap[markerId];
-    const markerGroup = window.markerMap?.[preset]; 
+    const markerGroup = window.markerMap?.[preset];
 
     if (match && markerGroup) {
       window.worldOrigin = {
         x: match.x,
         y: match.y,
-        worldPosition: markerGroup.position.clone(), 
-        rotationY: markerGroup.rotation.y || 0        
+        worldPosition: markerGroup.position.clone(),
+        rotationY: markerGroup.rotation.y || 0
       };
       console.log('[AR] World origin set:', window.worldOrigin);
     } else {
       console.warn('[AR] Failed to set world origin - match or markerGroup not found');
     }
+  } else if (window.worldOrigin) {
+    console.log('[AR] World origin already set. Skipping update.');
   }
 });
