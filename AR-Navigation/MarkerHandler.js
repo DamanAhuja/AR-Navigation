@@ -1,51 +1,56 @@
-document.addEventListener('markerFound', (e) => {
-  const preset = e.detail.preset;
-  const svgNodes = window.extractedNodes || [];
-  let markerId;
+document.addEventListener('DOMContentLoaded', () => {
+  const scene = document.querySelector('a-scene');
 
-  // Map preset to node ID
-  if (preset === 'hiro') markerId = svgNodes[0]?.id;
-  else if (preset === 'kanji') markerId = svgNodes[1]?.id;
+  // Listen for markerFound event on the scene
+  scene.addEventListener('markerFound', (e) => {
+    const marker = e.target; // The <a-marker> element that triggered the event
+    const preset = marker.getAttribute('preset'); // Get preset (e.g., 'hiro')
+    const markerId = marker.id; // Get marker ID
 
-  console.log("Detected marker:", preset, "-> Marker ID:", markerId);
+    // Map preset to node ID (adjust based on your extractedNodes structure)
+    let nodeId;
+    if (preset === 'hiro') nodeId = window.extractedNodes[0]?.id;
+    else if (preset === 'kanji') nodeId = window.extractedNodes[1]?.id;
 
-  // Retrieve markerGroup from somewhere (maybe event or existing structure?)
-  const markerGroup = window.markerMap?.[preset];
+    console.log('Detected marker:', preset, '-> Marker ID:', nodeId);
 
-  if (!markerGroup) {
-    console.warn(`[AR] No markerGroup found for preset: ${preset}`);
-    return;
-  }
+    // Store marker entity in markerMap
+    window.markerMap[preset] = marker;
 
-  window.markerMap = window.markerMap || {};
-  window.markerMap[preset] = markerGroup;
+    // Handle world origin setup
+    if (!window.worldOrigin && nodeId && typeof window.setUserLocation === 'function') {
+      window.setUserLocation(nodeId);
 
-  // Only update world origin once
-  if (!window.worldOrigin && markerId && typeof window.setUserLocation === 'function') {
-    window.setUserLocation(markerId);
+      const match = window.nodeMap[nodeId];
 
-    const match = window.nodeMap[markerId];
+      if (match && marker) {
+        // Access Three.js object for position and rotation
+        const markerObject3D = marker.object3D;
+        console.log('[DEBUG] Marker world position:', markerObject3D.position);
 
-    if (match && markerGroup) {
-      console.log('[DEBUG] Marker world position:', markerGroup.position);
+        window.worldOrigin = {
+          x: match.x,
+          y: match.y,
+          worldPosition: markerObject3D.position.clone(),
+          rotationY: markerObject3D.rotation.y || 0
+        };
 
-      window.worldOrigin = {
-        x: match.x,
-        y: match.y,
-        worldPosition: markerGroup.position.clone(),
-        rotationY: markerGroup.rotation.y || 0
-      };
+        const converted = svgToWorld(match.x, match.y);
+        console.log('[DEBUG] Converted world from SVG:', converted);
 
-      const converted = svgToWorld(match.x, match.y);
-      console.log('[DEBUG] Converted world from SVG:', converted);
-
-      console.log('[AR] World origin set:', window.worldOrigin);
-
-    } else {
-      console.warn('[AR] Failed to set world origin - match or markerGroup not found');
+        console.log('[AR] World origin set:', window.worldOrigin);
+      } else {
+        console.warn('[AR] Failed to set world origin - match or marker not found');
+      }
+    } else if (window.worldOrigin) {
+      console.log('[AR] World origin already set. Skipping update.');
     }
+  });
 
-  } else if (window.worldOrigin) {
-    console.log('[AR] World origin already set. Skipping update.');
-  }
+  // Optional: Handle markerLost event
+  scene.addEventListener('markerLost', (e) => {
+    const preset = e.target.getAttribute('preset');
+    console.log('Marker lost:', preset);
+    // Add logic for when marker is no longer visible, if needed
+  });
 });
