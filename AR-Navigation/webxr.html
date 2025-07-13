@@ -132,9 +132,16 @@
         return;
       }
 
-      xrSession = await navigator.xr.requestSession('immersive-ar', {
-        requiredFeatures: ['local']
-      });
+      try {
+  xrSession = await navigator.xr.requestSession('immersive-ar', {
+    requiredFeatures: ['local']
+  });
+} catch (err) {
+  console.error('[WebXR] requestSession failed:', err);
+  alert('WebXR session failed: ' + err.message);
+  return;
+}
+
 
       const canvas = document.getElementById('arCanvas');
       renderer = new THREE.WebGLRenderer({
