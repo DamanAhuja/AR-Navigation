@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>A-Frame AR.js Marker Scanner</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+
+  <!-- A-Frame & AR.js -->
+  <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
+  <script src="https://raw.githack.com/AR-js-org/AR.js/3.4.2/aframe/build/aframe-ar.min.js"></script>
+
+  <style>
+    body { margin: 0; overflow: hidden; }
+    #ar-scene { width: 100vw; height: 100vh; }
+  </style>
+</head>
+<body>
+  <a-scene
+    id="ar-scene"
+    embedded
+    vr-mode-ui="enabled: false"
+    arjs="sourceType: webcam; debugUIEnabled: false;"
+  >
+    <!-- Marker to detect -->
+    <a-marker type="pattern" preset="hiro" id="marker">
+      <a-box position="0 0.5 0" color="green" opacity="0.5"></a-box>
+    </a-marker>
+
+    <!-- Camera -->
+    <a-entity camera></a-entity>
+  </a-scene>
+
+  <script src="svg.js"></script>
+  <script>
+    const marker = document.querySelector('#marker');
+    // Redirect to main WebXR/Leaflet app
+    window.location.href = 'webxr.html';
+    marker.addEventListener('markerFound', () => {
+      console.log('[AR] markerFound triggered');
+
+      // Redirect to main WebXR/Leaflet app
+      window.location.href = 'webxr.html';
+    });
+  </script>
+</body>
+</html>
