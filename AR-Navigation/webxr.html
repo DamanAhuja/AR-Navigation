@@ -137,7 +137,7 @@
     requiredFeatures: ['local']
   });
 } catch (err) {
-  console.error('[WebXR] requestSession failed:', err);
+  console.error('[WebXR] requestSession failed:', err.message);
   alert('WebXR session failed: ' + err.message);
   return;
 }
