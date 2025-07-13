@@ -184,7 +184,7 @@
       console.log('[WebXR] XR session started successfully.');
     } catch (err) {
       console.error('[WebXR] Session failed to start:', err);
-      alert('AR session could not start. Please reload or check permissions.');
+      alert('AR session could not start. Please reload or check permissions.',err);
     }
   }, 500); // Adjust delay if needed
 });
