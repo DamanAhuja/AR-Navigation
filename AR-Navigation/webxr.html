@@ -175,25 +175,19 @@
       return params.get(name);
     }
 
-    document.addEventListener('DOMContentLoaded', () => {
-      const markerPreset = getQueryParam('marker');
-      console.log('[WebXR] Marker passed from AR.js:', markerPreset);
+   document.addEventListener('DOMContentLoaded', () => {
+  console.log('[WebXR] DOM loaded, waiting to start XR session...');
 
-      setTimeout(async () => {
-        try {
-          await initXR();
-
-          // Post-init logic that depends on marker
-          if (markerPreset && typeof setUserLocation === 'function') {
-            console.log('[WebXR] Setting user location from marker:', markerPreset);
-            setUserLocation(markerPreset);
-          }
-        } catch (err) {
-          console.error('[WebXR] Session failed to start:', err);
-          alert('AR session could not start. Please reload or check permissions.');
-        }
-      }, 500); // Delay to allow webcam release from AR.js
-    });
+    setTimeout(async () => {
+    try {
+      await initXR();
+      console.log('[WebXR] XR session started successfully.');
+    } catch (err) {
+      console.error('[WebXR] Session failed to start:', err);
+      alert('AR session could not start. Please reload or check permissions.');
+    }
+  }, 500); // Adjust delay if needed
+});
   </script>
 </body>
 </html>
