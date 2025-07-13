@@ -1,21 +1,32 @@
-scene.addEventListener('markerFound', (e) => {
-  const marker = e.target;
-  const preset = marker.getAttribute('preset');
-  const markerId = marker.id;
+document.addEventListener('DOMContentLoaded', () => {
+  const scene = document.querySelector('a-scene');
 
-  let nodeId;
-  if (preset === 'hiro') nodeId = window.extractedNodes?.[0]?.id;
-  else if (preset === 'kanji') nodeId = window.extractedNodes?.[1]?.id;
+  if (!scene) {
+    console.error("Scene not found!");
+    return;
+  }
 
-  console.log('Detected marker:', preset, '-> Marker ID:', nodeId);
+  scene.addEventListener('markerFound', (e) => {
+    const marker = e.target;
+    const preset = marker.getAttribute('preset');
+    const markerId = marker.id;
 
-  // Save info to sessionStorage (or localStorage)
-  sessionStorage.setItem('detectedMarkerPreset', preset);
-  sessionStorage.setItem('nodeId', nodeId);
+    let nodeId;
+    if (preset === 'hiro') nodeId = window.extractedNodes?.[0]?.id;
+    else if (preset === 'kanji') nodeId = window.extractedNodes?.[1]?.id;
 
-  // Optional: Save additional data like marker ID
-  sessionStorage.setItem('markerId', markerId);
+    console.log('Detected marker:', preset, '-> Marker ID:', nodeId);
 
-  // Redirect to the AR scene
-  window.location.href = 'webxr.html';
+    sessionStorage.setItem('detectedMarkerPreset', preset);
+    sessionStorage.setItem('nodeId', nodeId);
+    sessionStorage.setItem('markerId', markerId);
+
+    // Redirect after storing state
+    window.location.href = 'webxr.html';
+  });
+
+  scene.addEventListener('markerLost', (e) => {
+    const preset = e.target.getAttribute('preset');
+    console.log('Marker lost:', preset);
+  });
 });
