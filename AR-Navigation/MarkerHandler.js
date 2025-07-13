@@ -1,3 +1,4 @@
+document.addEventListener('DOMContentLoaded', () => {
 scene.addEventListener('markerFound', (e) => {
   const marker = e.target;
   const preset = marker.getAttribute('preset');
@@ -32,4 +33,5 @@ scene.addEventListener('markerFound', (e) => {
     console.log('[AR.js] Redirecting to WebXR scene...');
     window.location.href = 'webxr.html';
   }, 1000); // 1 second delay is usually safe
+});
 });
