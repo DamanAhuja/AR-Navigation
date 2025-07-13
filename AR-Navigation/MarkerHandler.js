@@ -1,8 +1,10 @@
 document.addEventListener('DOMContentLoaded', () => {
   const scene = document.querySelector('a-scene');
+  
 
   // Listen for markerFound event on the scene
   scene.addEventListener('markerFound', (e) => {
+    window.location.href = 'webxr.html';
     const marker = e.target; // The <a-marker> element that triggered the event
     const preset = marker.getAttribute('preset'); // Get preset (e.g., 'hiro')
     const markerId = marker.id; // Get marker ID
