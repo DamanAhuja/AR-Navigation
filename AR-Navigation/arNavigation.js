@@ -99,10 +99,13 @@ window.svgToWorld = svgToWorld;
       const worldPos = svgToWorld(lerpX, lerpY);
       const arrow = createArrowMesh();
       if (!arrow) continue;
-      arrow.scale.set(3, 3, 3); // Increase all dimensions (adjust values as needed)
+      arrow.scale.set(5, 5, 5); // Increase all dimensions (adjust values as needed)
 
 
       arrow.position.copy(worldPos);
+      
+      console.log('[DEBUG] Arrow world position:', arrow.position);
+      console.log('[DEBUG] Camera world position:', window.camera?.position || 'NO CAMERA');
 
       // Compute next world target
       const nextWorld = svgToWorld(toNode.x, toNode.y);
@@ -141,6 +144,11 @@ window.svgToWorld = svgToWorld;
 
   window.startNavigation = function (destinationId) {
     clearNavigation();
+
+    const testArrow = createArrowMesh();
+    testArrow.position.set(0, 0, -1); // 1 meter in front of camera
+    testArrow.scale.set(3, 3, 3);
+    window.scene.add(testArrow);
 
     if (!window.userPosition || !window.goTo || !window.nodeMap) {
       console.error('[AR Navigation] Required state not initialized');
