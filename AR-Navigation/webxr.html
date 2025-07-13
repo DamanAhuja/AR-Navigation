@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>WebXR AR + Leaflet + SVG</title>
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+
+  <!-- Libraries -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/webxr-polyfill@latest/build/webxr-polyfill.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/choices.js/public/assets/scripts/choices.min.js"></script>
+  <script src="sensors.js"></script>
+  <script src="choices.js"></script>
+
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
+
+  <style>
+    body, html {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      margin: 0;
+      padding: 0;
+      position: relative;
+    }
+
+    #routing-ui {
+      position: fixed;
+      top: 10px;
+      left: 10px;
+      right: 10px;
+      z-index: 1000;
+      background: rgba(255,255,255,0.9);
+      padding: 10px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 15px;
+      max-width: 500px;
+      margin: 0 auto;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.25);
+    }
+
+    #destinationDropdown {
+      width: 300px;
+    }
+
+    #routing-ui button {
+      padding: 8px 15px;
+      font-size: 16px;
+      background-color: #1976d2;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+
+    #map {
+      position: fixed;
+      bottom: 10px;
+      left: 10px;
+      width: 40%;
+      max-width: 300px;
+      height: 40%;
+      max-height: 300px;
+      border: 2px solid white;
+      border-radius: 5px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.5);
+      z-index: 999;
+      pointer-events: auto;
+    }
+
+    #svgObject {
+      position: absolute;
+      top: 0;
+      left: -9999px;
+      width: 600px;
+      height: 900px;
+      opacity: 0;
+      visibility: hidden;
+    }
+
+    canvas {
+      position: fixed !important;
+      top: 0 !important;
+      left: 0 !important;
+      width: 100vw !important;
+      height: 100vh !important;
+      z-index: 1;
+      display: block;
+      object-fit: cover;
+    }
+  </style>
+</head>
+
+<body>
+  <!-- UI -->
+  <div id="routing-ui">
+    <select id="destinationDropdown" class="choices"></select>
+    <button onclick="routeToDestination()">Go</button>
+  </div>
+
+  <!-- Map & SVG -->
+  <div id="map"></div>
+  <object id="svgObject" type="image/svg+xml" data="RDSC.svg"></object>
+
+  <!-- AR Canvas -->
+  <canvas id="arCanvas"></canvas>
+
+  <!-- Other Scripts -->
+  <script src="svg.js"></script>
+  <script src="leaflet.js"></script>
+  <script src="MarkerHandler.js"></script>
+  <script src="arNavigation.js"></script>
+
+  <!-- WebXR Setup -->
+  <script>
+    let renderer, scene, camera, xrRefSpace, xrSession;
+
+    async function initXR() {
+      if (!navigator.xr) {
+        alert("WebXR not supported.");
+        return;
+      }
+
+      const supported = await navigator.xr.isSessionSupported('immersive-ar');
+      if (!supported) {
+        alert("AR not available on this device.");
+        return;
+      }
+
+      xrSession = await navigator.xr.requestSession('immersive-ar', {
+        requiredFeatures: ['local']
+      });
+
+      const canvas = document.getElementById('arCanvas');
+      renderer = new THREE.WebGLRenderer({
+        antialias: true,
+        alpha: true,
+        canvas: canvas
+      });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setPixelRatio(window.devicePixelRatio);
+      renderer.xr.enabled = true;
+
+      document.body.appendChild(renderer.domElement);
+      renderer.xr.setReferenceSpaceType('local');
+      await renderer.xr.setSession(xrSession);
+
+      scene = new THREE.Scene();
+      camera = new THREE.PerspectiveCamera();
+      scene.add(camera);
+
+      xrRefSpace = await xrSession.requestReferenceSpace('local');
+
+      // Make these globals so your scripts (like arNavigation.js) can use them
+      window.renderer = renderer;
+      window.scene = scene;
+      window.camera = camera;
+      window.xrRefSpace = xrRefSpace;
+
+      renderer.setAnimationLoop(render);
+    }
+
+    function render(timestamp, frame) {
+      renderer.render(scene, camera);
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      initXR();
+
+      if (!document.getElementById('map')) {
+        console.error('Map div not found');
+      } else {
+        console.log('Map div found');
+      }
+    });
+  </script>
+</body>
+</html>
