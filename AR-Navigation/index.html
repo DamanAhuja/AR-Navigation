@@ -134,7 +134,10 @@
 
   <!-- AR.js + Three.js Logic -->
   <script>
-    let renderer, scene, camera;
+    window.renderer = null;
+    window.scene = null;
+    window.camera = null;
+
     let arToolkitSource, arToolkitContext;
     let markerRootHiro;
     let markerRootKanji;
@@ -146,18 +149,18 @@
 
     function init() {
       // Renderer
-      renderer = new THREE.WebGLRenderer({
+      window.renderer = new THREE.WebGLRenderer({
         antialias: true,
         alpha: true,
         canvas: document.getElementById('arCanvas')
       });
-      renderer.setSize(window.innerWidth, window.innerHeight);
-      renderer.setPixelRatio(window.devicePixelRatio);
+      window.renderer.setSize(window.innerWidth, window.innerHeight);
+      window.renderer.setPixelRatio(window.devicePixelRatio);
 
       // Scene + Camera
-      scene = new THREE.Scene();
-      camera = new THREE.Camera();
-      scene.add(camera);
+      window.scene = new THREE.Scene();
+      window.camera = new THREE.Camera();
+      window.scene.add(window.camera);
 
       // AR Toolkit Source (camera input)
       arToolkitSource = new THREEx.ArToolkitSource({
@@ -179,7 +182,7 @@
       });
 
     arToolkitContext.init(function onCompleted() {
-  camera.projectionMatrix.copy(arToolkitContext.getProjectionMatrix());
+  window.camera.projectionMatrix.copy(arToolkitContext.getProjectionMatrix());
 
   // Extra resize to ensure proper alignment
   setTimeout(() => {
@@ -189,7 +192,7 @@
 
       // Hiro Marker
       window.markerRootHiro = new THREE.Group();
-      scene.add(window.markerRootHiro);
+      window.scene.add(window.markerRootHiro);
       new THREEx.ArMarkerControls(arToolkitContext, window.markerRootHiro, {
         type: 'pattern',
         patternUrl: 'patt.hiro',
@@ -205,7 +208,7 @@
 
       // Kanji Marker
       window.markerRootKanji = new THREE.Group();
-      scene.add(window.markerRootKanji);
+      window.scene.add(window.markerRootKanji);
       new THREEx.ArMarkerControls(arToolkitContext, window.markerRootKanji, {
         type: 'pattern',
         patternUrl: 'patt.kanji',
@@ -232,7 +235,7 @@
 
     function onResize() {
       arToolkitSource.onResizeElement();
-      arToolkitSource.copyElementSizeTo(renderer.domElement);
+      arToolkitSource.copyElementSizeTo(window.renderer.domElement);
       if (arToolkitContext.arController !== null) {
         arToolkitSource.copyElementSizeTo(arToolkitContext.arController.canvas);
       }
@@ -245,7 +248,7 @@
       if (arToolkitSource.ready) {
         arToolkitContext.update(arToolkitSource.domElement);
 
-        for (const [preset, markerGroup] of Object.entries(markerMap)) {
+        for (const [preset, markerGroup] of Object.entries(window.markerMap)) {
       if (markerGroup.visible && !markerGroup.__wasVisible) {
         markerGroup.__wasVisible = true;
 
@@ -266,7 +269,7 @@
     }
       }
 
-      renderer.render(scene, camera);
+      window.renderer.render(window.scene, window.camera);
     }
 
     // Init on DOM ready

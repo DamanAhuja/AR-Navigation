@@ -7,7 +7,7 @@
   let navActive = false;
 
   function clearNavigation() {
-    arrows.forEach(a => scene.remove(a));
+    arrows.forEach(a => window.scene.remove(a));
     arrows = [];
     pathNodes = [];
     navActive = false;
@@ -106,10 +106,10 @@ window.svgToWorld = svgToWorld;
 
       arrow.position.copy(worldPos);
 
-      if (typeof scene !== 'undefined') {
-        scene.add(arrow);
+      if (typeof window.scene !== 'undefined') {
+        window.scene.add(arrow);
       } else {
-        console.warn('[AR Navigation] Scene is undefined. Arrow not added.');
+        console.warn('[AR Navigation] window.scene is undefined. Arrow not added.');
       }
 
       arrows.push(arrow);
