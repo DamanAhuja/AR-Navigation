@@ -10,7 +10,7 @@ document.addEventListener('markerFound', (e) => {
   console.log("Detected marker:", preset, "-> Marker ID:", markerId);
 
   // Retrieve markerGroup from somewhere (maybe event or existing structure?)
-  const markerGroup = e.detail.markerGroup || someOtherSource[preset]; // <-- FIX: define this correctly
+  const markerGroup = window.markerMap?.[preset];
 
   if (!markerGroup) {
     console.warn(`[AR] No markerGroup found for preset: ${preset}`);
