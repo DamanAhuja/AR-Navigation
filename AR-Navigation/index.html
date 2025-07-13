@@ -22,7 +22,7 @@
     arjs="sourceType: webcam; debugUIEnabled: false;"
   >
     <!-- Marker to detect -->
-    <a-marker type="pattern" preset="hiro" id="marker">
+    <a-marker type="pattern" preset="hiro" id="hiro-marker">
       <a-box position="0 0.5 0" color="green" opacity="0.5"></a-box>
     </a-marker>
 
@@ -30,15 +30,7 @@
     <a-entity camera></a-entity>
   </a-scene>
 
-  <!--<script src="svg.js"></script>-->
-  <script>
-    const marker = document.querySelector('#marker');
-    marker.addEventListener('markerFound', () => {
-      console.log('[AR] markerFound triggered');
-
-      // Redirect to main WebXR/Leaflet app
-      window.location.href = 'webxr.html';
-    });
-  </script>
+  <!-- Include your marker handler script -->
+  <script src="markerhandler.js"></script>
 </body>
 </html>
