@@ -113,7 +113,7 @@ window.svgToWorld = svgToWorld;
       }
 
       arrows.push(arrow);
-      console.log(`[AR Navigation] Placed arrow at world: (${worldPos.x.toFixed(2)}, 0, ${worldPos.z.toFixed(2)})`);
+      console.log(`[AR Navigation] Placed arrow at world: (${worldPos.x.toFixed(2)}, ${worldPos.y.toFixed(2)}, ${worldPos.z.toFixed(2)})`);
     }
 
     console.log(`[AR Navigation] Total arrows placed: ${arrows.length}`);
