@@ -120,6 +120,7 @@
     let renderer, scene, camera, xrRefSpace, xrSession;
 
     async function initXR() {
+      console.log('[WebXR] Initializing WebXR session...');
       if (!navigator.xr) {
         alert("WebXR not supported.");
         return;
@@ -155,7 +156,7 @@
 
       xrRefSpace = await xrSession.requestReferenceSpace('local');
 
-      // Make these globals so your scripts (like arNavigation.js) can use them
+      // Expose to global scope
       window.renderer = renderer;
       window.scene = scene;
       window.camera = camera;
@@ -168,14 +169,30 @@
       renderer.render(scene, camera);
     }
 
-    document.addEventListener('DOMContentLoaded', () => {
-      initXR();
+    // Utility to get marker from query param
+    function getQueryParam(name) {
+      const params = new URLSearchParams(window.location.search);
+      return params.get(name);
+    }
 
-      if (!document.getElementById('map')) {
-        console.error('Map div not found');
-      } else {
-        console.log('Map div found');
-      }
+    document.addEventListener('DOMContentLoaded', () => {
+      const markerPreset = getQueryParam('marker');
+      console.log('[WebXR] Marker passed from AR.js:', markerPreset);
+
+      setTimeout(async () => {
+        try {
+          await initXR();
+
+          // Post-init logic that depends on marker
+          if (markerPreset && typeof setUserLocation === 'function') {
+            console.log('[WebXR] Setting user location from marker:', markerPreset);
+            setUserLocation(markerPreset);
+          }
+        } catch (err) {
+          console.error('[WebXR] Session failed to start:', err);
+          alert('AR session could not start. Please reload or check permissions.');
+        }
+      }, 500); // Delay to allow webcam release from AR.js
     });
   </script>
 </body>
