@@ -110,6 +110,24 @@
   <!-- AR Canvas -->
   <canvas id="arCanvas"></canvas>
 
+  <!-- Start AR Button -->
+<button id="startARButton" style="
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  padding: 15px 30px;
+  font-size: 18px;
+  background-color: #1976d2;
+  color: white;
+  border: none;
+  border-radius: 10px;
+  z-index: 10000;
+  cursor: pointer;
+">
+  Start AR
+</button>
+
   <!-- Other Scripts -->
   <script src="svg.js"></script>
   <script src="leaflet.js"></script>
@@ -183,18 +201,27 @@
     }
 
    document.addEventListener('DOMContentLoaded', () => {
-  console.log('[WebXR] DOM loaded, waiting to start XR session...');
+  console.log('[WebXR] DOM loaded. Waiting for user to start AR.');
 
-    setTimeout(async () => {
+  const startButton = document.getElementById('startARButton');
+
+  startButton.addEventListener('click', async () => {
+    startButton.disabled = true;
+    startButton.innerText = "Starting AR...";
+
     try {
       await initXR();
       console.log('[WebXR] XR session started successfully.');
+      startButton.style.display = 'none'; // Hide after success
     } catch (err) {
       console.error('[WebXR] Session failed to start:', err);
-      alert('AR session could not start. Please reload or check permissions.',err);
+      alert('AR session could not start: ' + err.message);
+      startButton.disabled = false;
+      startButton.innerText = "Start AR";
     }
-  }, 1500); // Adjust delay if needed
+  });
 });
+
   </script>
 </body>
 </html>
