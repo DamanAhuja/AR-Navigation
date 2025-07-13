@@ -26,35 +26,24 @@ function svgToWorld(svgX, svgY) {
 
   const angleRad = getNorthOffset() * Math.PI / 180;
 
-  const xMeters = dx * 0.01; // 1 SVG unit = 1 cm
+  const xMeters = dx * 0.01;
   const zMeters = dy * 0.01;
 
-  // Rotate the position
   const rotatedX = xMeters * Math.cos(angleRad) - zMeters * Math.sin(angleRad);
   const rotatedZ = xMeters * Math.sin(angleRad) + zMeters * Math.cos(angleRad);
 
-  // Clone origin to avoid mutation
   const origin = window.worldOrigin.worldPosition.clone();
 
-  // Sanitize Y value from marker
-  const liveMarker = window.markerMap?.hiro;
-  if (
-    liveMarker &&
-    liveMarker.visible &&
-    !isNaN(liveMarker.position.y) &&
-    Math.abs(liveMarker.position.y) < 10
-  ) {
-    origin.y = liveMarker.position.y;
-  } else {
-    origin.y = 0; // default/fallback height
-  }
+  // ✅ Use only world origin Y — do NOT update it from live marker anymore
+  const fixedY = origin.y;
 
   return new THREE.Vector3(
     origin.x + rotatedX,
-    origin.y,
+    fixedY,
     origin.z - rotatedZ
   );
 }
+
 
 
 // Expose globally
@@ -110,8 +99,21 @@ window.svgToWorld = svgToWorld;
       const worldPos = svgToWorld(lerpX, lerpY);
       const arrow = createArrowMesh();
       if (!arrow) continue;
+      arrow.scale.set(3, 3, 3); // Increase all dimensions (adjust values as needed)
+
 
       arrow.position.copy(worldPos);
+
+      // Compute next world target
+      const nextWorld = svgToWorld(toNode.x, toNode.y);
+
+      // Make the arrow point toward the next node
+      arrow.lookAt(nextWorld);
+
+      // Fix unwanted tilt (lock pitch/roll)
+      arrow.rotation.x = 0;
+      arrow.rotation.z = 0;
+
 
       if (typeof window.scene !== 'undefined') {
         window.scene.add(arrow);
