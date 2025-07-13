@@ -26,29 +26,36 @@ function svgToWorld(svgX, svgY) {
 
   const angleRad = getNorthOffset() * Math.PI / 180;
 
-  const xMeters = dx * SVG_TO_METERS;
-  const zMeters = dy * SVG_TO_METERS;
+  const xMeters = dx * 0.01; // 1 SVG unit = 1 cm
+  const zMeters = dy * 0.01;
 
-  // Rotate relative offset
+  // Rotate the position
   const rotatedX = xMeters * Math.cos(angleRad) - zMeters * Math.sin(angleRad);
   const rotatedZ = xMeters * Math.sin(angleRad) + zMeters * Math.cos(angleRad);
 
-  // Clone origin so we don't accidentally mutate it
+  // Clone origin to avoid mutation
   const origin = window.worldOrigin.worldPosition.clone();
 
-  // Try to use live marker Y if available
+  // Sanitize Y value from marker
   const liveMarker = window.markerMap?.hiro;
-  if (liveMarker) {
+  if (
+    liveMarker &&
+    liveMarker.visible &&
+    !isNaN(liveMarker.position.y) &&
+    Math.abs(liveMarker.position.y) < 10
+  ) {
     origin.y = liveMarker.position.y;
+  } else {
+    origin.y = 0; // default/fallback height
   }
 
-  // Apply world origin position (AR anchor point)
   return new THREE.Vector3(
     origin.x + rotatedX,
-    origin.y, // Now updated with live marker Y if available
-    origin.z - rotatedZ // negate Z because AR uses -Z forward
+    origin.y,
+    origin.z - rotatedZ
   );
 }
+
 
 // Expose globally
 window.svgToWorld = svgToWorld;
