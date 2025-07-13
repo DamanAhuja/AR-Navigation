@@ -22,6 +22,18 @@ document.addEventListener('DOMContentLoaded', () => {
     sessionStorage.setItem('markerId', markerId);
 
     // Redirect after storing state
+    const arScene = document.querySelector('a-scene');
+if (arScene && arScene.systems && arScene.systems["arjs"]) {
+  const arSystem = arScene.systems["arjs"];
+  if (arSystem.arToolkitSource && arSystem.arToolkitSource.domElement) {
+    const video = arSystem.arToolkitSource.domElement;
+    if (video && video.srcObject) {
+      // Stop all video tracks
+      video.srcObject.getTracks().forEach(track => track.stop());
+    }
+  }
+}
+
     window.location.href = 'webxr.html';
   });
 
