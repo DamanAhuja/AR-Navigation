@@ -143,12 +143,7 @@ window.svgToWorld = svgToWorld;
   }
 
   window.startNavigation = function (destinationId) {
-    clearNavigation();
-
-    const testArrow = createArrowMesh();
-    testArrow.position.set(0, 0, -1); // 1 meter in front of camera
-    testArrow.scale.set(3, 3, 3);
-    window.scene.add(testArrow);
+    //clearNavigation();
 
     if (!window.userPosition || !window.goTo || !window.nodeMap) {
       console.error('[AR Navigation] Required state not initialized');
@@ -166,10 +161,10 @@ window.svgToWorld = svgToWorld;
     pathNodes = pathResult.path.map(id => window.nodeMap[id]);
 
     for (let i = 0; i < pathNodes.length - 1; i++) {
-      drawArrowsBetween(pathNodes[i], pathNodes[i + 1]);
+      //drawArrowsBetween(pathNodes[i], pathNodes[i + 1]);
     }
 
-    navActive = true;
+    //navActive = true;
     console.log(`[AR Navigation] Navigation started to ${destinationId}`);
   };
 
