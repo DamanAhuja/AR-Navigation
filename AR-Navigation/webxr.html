@@ -192,6 +192,10 @@
 
   function render(timestamp, frame) {
     renderer.render(scene, camera);
+    // Update navigation arrows
+    if (typeof updateNavigationFrame === 'function') {
+      updateNavigationFrame();
+    }
   }
 
   // Utility to get marker from query param if needed later
