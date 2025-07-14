@@ -216,7 +216,9 @@
 
     let nodeId;
     const markerId = sessionStorage.getItem('markerId'); 
+    const preset = sessionStrorage.getItem('preset');
     console.log(`[WebXR] Retrieved markerId: ${markerId}`);
+    console.log(`[WebXR] Retrieved marker preset: ${preset}`);
     
     if (preset === 'hiro') nodeId = window.extractedNodes[0]?.id;
     else if (preset === 'kanji') nodeId = window.extractedNodes[1]?.id;
