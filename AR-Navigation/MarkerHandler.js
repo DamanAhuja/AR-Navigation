@@ -1,3 +1,5 @@
+document.addEventListener('DOMContentLoaded', () => {
+const scene = document.querySelector('a-scene');
 scene.addEventListener('markerFound', (e) => {
   const marker = e.target;
   const preset = marker.getAttribute('preset');
