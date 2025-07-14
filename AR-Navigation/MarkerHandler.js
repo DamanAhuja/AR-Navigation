@@ -1,4 +1,72 @@
+
 document.addEventListener('DOMContentLoaded', () => {
+  const scene = document.querySelector('a-scene');
+  if (!scene) {
+    console.error('[MarkerHandler] <a-scene> not found.');
+    return;
+  }
+
+  scene.addEventListener('markerFound', (e) => {
+    const marker = e.target;
+    const preset = marker.getAttribute('preset');
+    const markerId = marker.id;
+
+    console.log('[MarkerHandler] Marker found:', preset, markerId);
+
+    let attempts = 0;
+
+    function storeDataAndRedirect(nodeId) {
+      sessionStorage.setItem('detectedMarkerPreset', preset);
+      sessionStorage.setItem('nodeId', nodeId);
+      sessionStorage.setItem('markerId', markerId);
+
+      // Release AR.js webcam
+      const arSystem = scene.systems?.arjs;
+      if (arSystem?.arToolkitSource?.domElement?.srcObject) {
+        arSystem.arToolkitSource.domElement.srcObject.getTracks().forEach(track => track.stop());
+        console.log('[AR.js] Webcam tracks stopped.');
+      }
+
+      console.log('[MarkerHandler] Redirecting to WebXR...');
+      window.location.href = 'webxr.html';
+    }
+
+    function waitForNodeAndRedirect() {
+      const nodes = window.extractedNodes;
+
+      if (nodes && nodes.length > 0) {
+        let nodeId;
+        if (preset === 'hiro') nodeId = nodes[0]?.id;
+        else if (preset === 'kanji') nodeId = nodes[1]?.id;
+
+        if (nodeId) {
+          console.log('[MarkerHandler] Detected nodeId:', nodeId);
+          storeDataAndRedirect(nodeId);
+        } else {
+          console.warn('[MarkerHandler] Node ID not found for preset:', preset);
+          storeDataAndRedirect(""); // fallback to empty so redirect still happens
+        }
+
+      } else if (attempts < 10) {
+        console.warn('[MarkerHandler] extractedNodes not ready, retrying... (' + (attempts + 1) + ')');
+        attempts++;
+        setTimeout(waitForNodeAndRedirect, 200);
+      } else {
+        console.error('[MarkerHandler] Failed to access extractedNodes after 10 retries.');
+        storeDataAndRedirect(""); // fallback to still allow redirect
+      }
+    }
+
+    waitForNodeAndRedirect();
+  });
+});
+
+
+
+
+
+
+  /*document.addEventListener('DOMContentLoaded', () => {
 const scene = document.querySelector('a-scene');
 scene.addEventListener('markerFound', (e) => {
   const marker = e.target;
@@ -35,7 +103,7 @@ scene.addEventListener('markerFound', (e) => {
     window.location.href = 'webxr.html';
   }, 1000); // 1 second delay is usually safe
 });
-});
+});*/
 
 
 
