@@ -53,29 +53,27 @@ window.addEventListener("load", () => {
         }).addTo(map).bindPopup(node.id);
       });
 
-      // Do NOT add userMarker yet — wait for marker detection
       let userMarker = null;
       window.userMarker = null;
 
-   window.goTo = function (targetNodeId) {
-  if (!currentMarkerId) {
-    console.warn("Current user location not set.");
-    return;
-  }
+      window.goTo = function (targetNodeId) {
+        if (!currentMarkerId) {
+          console.warn("Current user location not set.");
+          return;
+        }
 
-  const result = dijkstra(currentMarkerId, targetNodeId);
+        const result = dijkstra(currentMarkerId, targetNodeId);
 
-  if (result.path) {
-    drawPath(result.path);
-    console.log(`Shortest path from ${currentMarkerId} to ${targetNodeId}:`, result.path);
-    console.log("Total distance:", result.distance, "m");
-  } else {
-    console.warn("No path found.");
-  }
+        if (result.path) {
+          drawPath(result.path);
+          console.log(`Shortest path from ${currentMarkerId} to ${targetNodeId}:`, result.path);
+          console.log("Total distance:", result.distance, "m");
+        } else {
+          console.warn("No path found.");
+        }
 
-  return result; 
-};
-
+        return result;
+      };
 
       window.setCurrentMarkerId = function (markerId) {
         const match = window.nodeMap[markerId];
@@ -96,7 +94,6 @@ window.addEventListener("load", () => {
 
         currentMarkerId = markerId;
 
-        // Create userMarker only on first detection
         if (!window.userMarker) {
           userMarker = L.circleMarker([match.y, match.x], {
             radius: 8,
@@ -116,10 +113,14 @@ window.addEventListener("load", () => {
       console.log('[Leaflet] Graph ready, nodeMap populated:', Object.keys(window.nodeMap));
       console.log('[Leaflet] setCurrentMarkerId, setUserLocation, and goTo functions defined');
 
-      // REMOVE auto-test calls:
-      // setTimeout(() => window.setUserLocation("Entrance"), 1000);
-      // setTimeout(() => window.goTo("Entrance2"), 2000);
+  
+      const nodeIdFromSession = sessionStorage.getItem('nodeId');
+      if (nodeIdFromSession && typeof window.setUserLocation === 'function') {
+        console.log('[Leaflet] Setting user location from sessionStorage nodeId:', nodeIdFromSession);
+        window.setUserLocation(nodeIdFromSession);
+      }
 
+      // --- Pathfinding helpers ---
       function dijkstra(start, end) {
         const distances = {}, previous = {}, queue = new Set(Object.keys(graph));
         for (const node of queue) {
@@ -170,7 +171,6 @@ window.addEventListener("load", () => {
 
       function drawPath(path) {
         clearPath();
-
         for (let i = 0; i < path.length - 1; i++) {
           const from = window.nodeMap[path[i]];
           const to = window.nodeMap[path[i + 1]];
