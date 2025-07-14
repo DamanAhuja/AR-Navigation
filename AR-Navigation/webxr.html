@@ -133,95 +133,95 @@
   <script src="leaflet.js"></script>
   <!--<script src="arNavigation.js"></script>-->
 
-  <!-- WebXR Setup -->
-  <script>
-    let renderer, scene, camera, xrRefSpace, xrSession;
+<script>
+  let renderer, scene, camera, xrRefSpace, xrSession;
 
-    async function initXR() {
-      console.log('[WebXR] Initializing WebXR session...');
-      if (!navigator.xr) {
-        alert("WebXR not supported.");
-        return;
-      }
-
-      const supported = await navigator.xr.isSessionSupported('immersive-ar');
-      if (!supported) {
-        alert("AR not available on this device.");
-        return;
-      }
-
-      try {
-  xrSession = await navigator.xr.requestSession('immersive-ar', {
-    requiredFeatures: ['local']
-  });
-} catch (err) {
-  console.error('[WebXR] requestSession failed:', err.message);
-  alert('WebXR session failed: ' + err.message);
-  return;
-}
-
-
-      const canvas = document.getElementById('arCanvas');
-      renderer = new THREE.WebGLRenderer({
-        antialias: true,
-        alpha: true,
-        canvas: canvas
-      });
-      renderer.setSize(window.innerWidth, window.innerHeight);
-      renderer.setPixelRatio(window.devicePixelRatio);
-      renderer.xr.enabled = true;
-
-      document.body.appendChild(renderer.domElement);
-      renderer.xr.setReferenceSpaceType('local');
-      await renderer.xr.setSession(xrSession);
-
-      scene = new THREE.Scene();
-      camera = new THREE.PerspectiveCamera();
-      scene.add(camera);
-
-      xrRefSpace = await xrSession.requestReferenceSpace('local');
-
-      // Expose to global scope
-      window.renderer = renderer;
-      window.scene = scene;
-      window.camera = camera;
-      window.xrRefSpace = xrRefSpace;
-
-      renderer.setAnimationLoop(render);
+  async function initXR() {
+    console.log('[WebXR] Initializing WebXR session...');
+    if (!navigator.xr) {
+      alert("WebXR not supported.");
+      return;
     }
 
-    function render(timestamp, frame) {
-      renderer.render(scene, camera);
+    const supported = await navigator.xr.isSessionSupported('immersive-ar');
+    if (!supported) {
+      alert("AR not available on this device.");
+      return;
     }
-
-    // Utility to get marker from query param
-    function getQueryParam(name) {
-      const params = new URLSearchParams(window.location.search);
-      return params.get(name);
-    }
-
-   document.addEventListener('DOMContentLoaded', () => {
-  console.log('[WebXR] DOM loaded. Waiting for user to start AR.');
-
-  const startButton = document.getElementById('startARButton');
-
-  startButton.addEventListener('click', async () => {
-    startButton.disabled = true;
-    startButton.innerText = "Starting AR...";
 
     try {
-      await initXR();
-      console.log('[WebXR] XR session started successfully.');
-      startButton.style.display = 'none'; // Hide after success
+      xrSession = await navigator.xr.requestSession('immersive-ar', {
+        requiredFeatures: ['local'],
+        optionalFeatures: ['dom-overlay'],
+        domOverlay: { root: document.body } 
+      });
     } catch (err) {
-      console.error('[WebXR] Session failed to start:', err);
-      alert('AR session could not start: ' + err.message);
-      startButton.disabled = false;
-      startButton.innerText = "Start AR";
+      console.error('[WebXR] requestSession failed:', err.message);
+      alert('WebXR session failed: ' + err.message);
+      return;
     }
-  });
-});
 
-  </script>
+    const canvas = document.getElementById('arCanvas');
+    renderer = new THREE.WebGLRenderer({
+      antialias: true,
+      alpha: true,
+      canvas: canvas
+    });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(window.devicePixelRatio);
+    renderer.xr.enabled = true;
+
+    // You already added canvas in HTML, no need to append again
+    renderer.xr.setReferenceSpaceType('local');
+    await renderer.xr.setSession(xrSession);
+
+    scene = new THREE.Scene();
+    camera = new THREE.PerspectiveCamera();
+    scene.add(camera);
+
+    xrRefSpace = await xrSession.requestReferenceSpace('local');
+
+    // Expose globals for use in other scripts
+    window.renderer = renderer;
+    window.scene = scene;
+    window.camera = camera;
+    window.xrRefSpace = xrRefSpace;
+
+    renderer.setAnimationLoop(render);
+  }
+
+  function render(timestamp, frame) {
+    renderer.render(scene, camera);
+  }
+
+  // Utility to get marker from query param if needed later
+  function getQueryParam(name) {
+    const params = new URLSearchParams(window.location.search);
+    return params.get(name);
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    console.log('[WebXR] DOM loaded. Waiting for user to start AR.');
+
+    const startButton = document.getElementById('startARButton');
+
+    startButton.addEventListener('click', async () => {
+      startButton.disabled = true;
+      startButton.innerText = "Starting AR...";
+
+      try {
+        await initXR();
+        console.log('[WebXR] XR session started successfully.');
+        startButton.style.display = 'none'; // Hide after success
+      } catch (err) {
+        console.error('[WebXR] Session failed to start:', err);
+        alert('AR session could not start: ' + err.message);
+        startButton.disabled = false;
+        startButton.innerText = "Start AR";
+      }
+    });
+  });
+</script>
+
 </body>
 </html>
