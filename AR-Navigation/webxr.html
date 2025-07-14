@@ -214,15 +214,15 @@
     console.log('[WebXR] XR session started successfully.');
     startButton.style.display = 'none'; // Hide after success
 
- 
-    const markerId = sessionStorage.getItem('markerId');
-
-    if (markerId && typeof setUserLocation === 'function') {
-      console.log('[WebXR] Setting user location from stored marker:', markerId);
-      setUserLocation(markerId);
-    } else {
-      console.warn('[WebXR] No markerId found or setUserLocation is undefined');
-    }
+    const nodeId = sessionStorage.getItem('nodeId');
+const markerId = sessionStorage.getItem('markerId'); 
+ console.log(`[WebXR] Retrieved nodeId: ${nodeId}, markerId: ${markerId}`);
+if (nodeId && typeof setUserLocation === 'function') {
+  console.log('[WebXR] Setting user location from stored node ID:', nodeId);
+  setUserLocation(nodeId);
+} else {
+  console.warn('[WebXR] No nodeId found or setUserLocation is undefined');
+}
 
   } catch (err) {
     console.error('[WebXR] Session failed to start:', err);
