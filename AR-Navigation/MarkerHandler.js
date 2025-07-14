@@ -44,7 +44,7 @@ document.addEventListener('DOMContentLoaded', () => {
           storeDataAndRedirect(nodeId);
         } else {
           console.warn('[MarkerHandler] Node ID not found for preset:', preset);
-          storeDataAndRedirect(""); // fallback to empty so redirect still happens
+          //storeDataAndRedirect(""); // fallback to empty so redirect still happens
         }
 
       } else if (attempts < 10) {
@@ -53,7 +53,7 @@ document.addEventListener('DOMContentLoaded', () => {
         setTimeout(waitForNodeAndRedirect, 200);
       } else {
         console.error('[MarkerHandler] Failed to access extractedNodes after 10 retries.');
-        storeDataAndRedirect(""); // fallback to still allow redirect
+        //storeDataAndRedirect(""); // fallback to still allow redirect
       }
     }
 
