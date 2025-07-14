@@ -209,16 +209,27 @@
       startButton.disabled = true;
       startButton.innerText = "Starting AR...";
 
-      try {
-        await initXR();
-        console.log('[WebXR] XR session started successfully.');
-        startButton.style.display = 'none'; // Hide after success
-      } catch (err) {
-        console.error('[WebXR] Session failed to start:', err);
-        alert('AR session could not start: ' + err.message);
-        startButton.disabled = false;
-        startButton.innerText = "Start AR";
-      }
+     try {
+    await initXR();
+    console.log('[WebXR] XR session started successfully.');
+    startButton.style.display = 'none'; // Hide after success
+
+ 
+    const markerId = sessionStorage.getItem('markerId');
+
+    if (markerId && typeof setUserLocation === 'function') {
+      console.log('[WebXR] Setting user location from stored marker:', markerId);
+      setUserLocation(markerId);
+    } else {
+      console.warn('[WebXR] No markerId found or setUserLocation is undefined');
+    }
+
+  } catch (err) {
+    console.error('[WebXR] Session failed to start:', err);
+    alert('AR session could not start: ' + err.message);
+    startButton.disabled = false;
+    startButton.innerText = "Start AR";
+  }
     });
   });
 </script>
