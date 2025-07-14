@@ -122,8 +122,8 @@ window.addEventListener('deviceorientation', (event) => {
       cameraHeading = alpha;
     }
     cameraHeading = (cameraHeading + 360) % 360;
-    console.log('[Sensors] Device orientation - alpha:', alpha, 'beta:', beta, 'gamma:', gamma);
-    console.log('[Sensors] Computed camera heading:', cameraHeading);
+    //console.log('[Sensors] Device orientation - alpha:', alpha, 'beta:', beta, 'gamma:', gamma);
+    //console.log('[Sensors] Computed camera heading:', cameraHeading);
   }
 });
 
