@@ -230,20 +230,18 @@
     console.log('[MarkerHandler] Detected nodeId:', nodeId);
 
        if (nodeId && window.nodeMap && window.nodeMap[nodeId]) {
-  const svgNode = window.nodeMap[nodeId]; // must have .x and .y in SVG space
+          const svgNode = window.nodeMap[nodeId]; // must have .x and .y in SVG space
+          window.worldOrigin = {
+          x: svgNode.x,
+          y: svgNode.y,
+          worldPosition: new Three.Vector3(0,0,0)
+          };
 
-  const cameraPos = window.camera.position.clone(); // AR world space position at time of detection
-
-  window.worldOrigin = {
-    x: svgNode.x,
-    y: svgNode.y,
-    worldPosition: cameraPos
-  };
-
-  console.log('[WebXR] World origin set from marker location:', window.worldOrigin);
-} else {
-  console.warn('[WebXR] Cannot set world origin. nodeId or nodeMap missing:', nodeId, window.nodeMap);
-}
+          console.log('[WebXR] World origin set from marker location:', window.worldOrigin);
+      } 
+      else {
+         console.warn('[WebXR] Cannot set world origin. nodeId or nodeMap missing:', nodeId, window.nodeMap);
+      }
 
     if (typeof setUserLocation === 'function') {
        console.log('[WebXR] Setting user location from stored node ID:', nodeId);
