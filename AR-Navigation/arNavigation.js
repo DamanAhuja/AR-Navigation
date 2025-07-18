@@ -35,61 +35,53 @@
     return arrow;
   }
 
-  function placeArrowsAlongPath(pathNodes) {
-  const sampledPoints = [];
-
-  let remaining = 0;
+  function placeArrows(pathNodes) {
+  let totalDistance = 0;
+  let nextArrowAt = ARROW_SPACING_METERS;
 
   for (let i = 0; i < pathNodes.length - 1; i++) {
-    const from = pathNodes[i];
-    const to = pathNodes[i + 1];
+    const fromSvg = pathNodes[i];
+    const toSvg = pathNodes[i + 1];
 
-    const dx = to.x - from.x;
-    const dy = to.y - from.y;
-    const distSVG = Math.hypot(dx, dy);
-    const distM = distSVG * SVG_TO_METERS;
+    const dx = toSvg.x - fromSvg.x;
+    const dy = toSvg.y - fromSvg.y;
+    const distSvg = Math.hypot(dx, dy);
+    const distM = distSvg * SVG_TO_METERS_X;
 
-    const segmentDirX = dx / distSVG;
-    const segmentDirY = dy / distSVG;
+    if (distM === 0) continue;
 
-    const totalAvailable = distM + remaining;
-    const segmentSteps = Math.floor(totalAvailable / ARROW_SPACING_METERS);
-    let offsetM = (remaining > 0) ? ARROW_SPACING_METERS - remaining : 0;
+    const direction = new THREE.Vector2(dx, dy).normalize();
 
-    for (let j = 0; j < segmentSteps; j++) {
-      const svgX = from.x + segmentDirX * (offsetM / SVG_TO_METERS);
-      const svgY = from.y + segmentDirY * (offsetM / SVG_TO_METERS);
-      sampledPoints.push({ x: svgX, y: svgY });
+    while (totalDistance + distM >= nextArrowAt) {
+      const distIntoSegment = nextArrowAt - totalDistance;
+      const distIntoSegmentSvg = distIntoSegment / SVG_TO_METERS_X;
 
-      offsetM += ARROW_SPACING_METERS;
+      const x = fromSvg.x + direction.x * distIntoSegmentSvg;
+      const y = fromSvg.y + direction.y * distIntoSegmentSvg;
+      const pos = svgToWorldBasic(x, y);
+
+      // Lookahead for direction
+      const nextSvgX = x + direction.x * 0.01; // small step forward
+      const nextSvgY = y + direction.y * 0.01;
+      const nextPos = svgToWorldBasic(nextSvgX, nextSvgY);
+
+      const arrow = createArrowMesh();
+      arrow.position.copy(pos);
+      arrow.lookAt(nextPos);
+      arrow.rotation.x = 0;
+      arrow.rotation.z = 0;
+      arrow.scale.set(5, 5, 5);
+
+      window.scene?.add(arrow);
+      arrows.push(arrow);
+
+      nextArrowAt += ARROW_SPACING_METERS;
     }
 
-    const usedDistance = segmentSteps * ARROW_SPACING_METERS;
-    remaining = totalAvailable - usedDistance;
+    totalDistance += distM;
   }
 
-  // Instantiate arrows
-  for (let i = 0; i < sampledPoints.length - 1; i++) {
-    const point = sampledPoints[i];
-    const next = sampledPoints[i + 1];
-
-    const worldPos = svgToWorld(point.x, point.y);
-    const nextWorld = svgToWorld(next.x, next.y);
-
-    const arrow = createArrowMesh();
-    if (!arrow) continue;
-
-    arrow.position.copy(worldPos);
-    arrow.scale.set(5, 5, 5);
-    arrow.lookAt(nextWorld);
-    arrow.rotation.x = 0;
-    arrow.rotation.z = 0;
-
-    window.scene?.add(arrow);
-    arrows.push(arrow);
-  }
-
-  console.log(`[AR Navigation] ${arrows.length} arrows placed along path.`);
+  console.log(`[AR Navigation] Placed ${arrows.length} arrows.`);
 }
 
 
@@ -101,6 +93,6 @@
     if (!result?.path || result.path.length < 2) return;
 
     const pathNodes = result.path.map(id => window.nodeMap[id]);
-    placeArrowsAlongPath(pathNodes);
+    placeArrows(pathNodes);
   };
 })();
