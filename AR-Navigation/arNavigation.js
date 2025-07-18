@@ -69,71 +69,47 @@
     }
   }
 
-  function drawArrowsAlongPath(nodes) {
-    if (nodes.length < 2) {
-      console.warn('[AR] Path too short to draw arrows');
-      return;
-    }
+  function drawArrowsOnFullPath(pathNodes) {
+    const ARROW_SPACING = ARROW_SPACING_METERS;
+    let leftoverDistance = 0;
 
-    // Calculate cumulative distances and store segment information
-    const segments = [];
-    let totalLengthMeters = 0;
+    for (let i = 0; i < pathNodes.length - 1; i++) {
+      const from = pathNodes[i];
+      const to = pathNodes[i + 1];
 
-    for (let i = 0; i < nodes.length - 1; i++) {
-      const fromNode = nodes[i];
-      const toNode = nodes[i + 1];
-      const dx = toNode.x - fromNode.x;
-      const dy = toNode.y - fromNode.y;
-      const distanceSVG = Math.hypot(dx, dy);
-      const distanceMeters = distanceSVG * SVG_TO_METERS;
-      segments.push({
-        fromNode,
-        toNode,
-        distanceMeters,
-        cumulativeDistance: totalLengthMeters
-      });
-      totalLengthMeters += distanceMeters;
-    }
+      const dx = to.x - from.x;
+      const dy = to.y - from.y;
+      const segmentLengthSVG = Math.hypot(dx, dy);
+      const segmentLengthMeters = segmentLengthSVG * SVG_TO_METERS;
 
-    // Place arrows every ARROW_SPACING_METERS along the total path
-    const numArrows = Math.floor(totalLengthMeters / ARROW_SPACING_METERS);
-    for (let i = 1; i <= numArrows; i++) {
-      const targetDistance = i * ARROW_SPACING_METERS;
-      let currentDistance = 0;
-      let currentSegment = null;
+      const directionX = dx / segmentLengthSVG;
+      const directionY = dy / segmentLengthSVG;
 
-      // Find the segment containing the target distance
-      for (const segment of segments) {
-        if (targetDistance >= segment.cumulativeDistance && 
-            targetDistance < segment.cumulativeDistance + segment.distanceMeters) {
-          currentSegment = segment;
-          break;
-        }
-        currentDistance = segment.cumulativeDistance + segment.distanceMeters;
+      let distanceAlongSegment = ARROW_SPACING - leftoverDistance;
+
+      while (distanceAlongSegment < segmentLengthMeters) {
+        const posX = from.x + directionX * (distanceAlongSegment / SVG_TO_METERS);
+        const posY = from.y + directionY * (distanceAlongSegment / SVG_TO_METERS);
+
+        const worldPos = svgToWorld(posX, posY);
+        const arrow = createArrowMesh();
+        if (!arrow) break;
+
+        arrow.scale.set(5, 5, 5);
+        arrow.position.copy(worldPos);
+
+        const toWorld = svgToWorld(to.x, to.y);
+        arrow.lookAt(toWorld);
+        arrow.rotation.x = 0;
+        arrow.rotation.z = 0;
+
+        window.scene.add(arrow);
+        arrows.push(arrow);
+
+        distanceAlongSegment += ARROW_SPACING;
       }
 
-      if (!currentSegment) continue;
-
-      // Interpolate within the segment
-      const segmentProgress = (targetDistance - currentSegment.cumulativeDistance) / currentSegment.distanceMeters;
-      const lerpX = currentSegment.fromNode.x + (currentSegment.toNode.x - currentSegment.fromNode.x) * segmentProgress;
-      const lerpY = currentSegment.fromNode.y + (currentSegment.toNode.y - currentSegment.fromNode.y) * segmentProgress;
-
-      const worldPos = svgToWorld(lerpX, lerpY);
-      const arrow = createArrowMesh();
-      if (!arrow) continue;
-
-      arrow.scale.set(5, 5, 5);
-      arrow.position.copy(worldPos);
-
-      // Orient arrow toward the next node
-      const nextWorld = svgToWorld(currentSegment.toNode.x, currentSegment.toNode.y);
-      arrow.lookAt(nextWorld);
-      arrow.rotation.x = 0;
-      arrow.rotation.z = 0;
-
-      window.scene.add(arrow);
-      arrows.push(arrow);
+      leftoverDistance = segmentLengthMeters - (distanceAlongSegment - ARROW_SPACING);
     }
   }
 
@@ -166,8 +142,7 @@
 
     pathNodes = pathResult.path.map(id => window.nodeMap[id]);
 
-    // Draw arrows along the entire path
-    drawArrowsAlongPath(pathNodes);
+    drawArrowsOnFullPath(pathNodes);
 
     navActive = true;
     console.log(`[AR Navigation] Navigation started to ${destinationId}`);
