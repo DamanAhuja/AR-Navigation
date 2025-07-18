@@ -35,7 +35,7 @@
 
     return new THREE.Vector3(
       origin.x + rotatedX,
-      origin.y,
+      origin.y, // keep Y fixed as anchor
       origin.z - rotatedZ
     );
   }
@@ -69,73 +69,70 @@
     }
   }
 
-  function drawArrowsAlongPath(nodes) {
-    if (nodes.length < 2) {
-      console.warn('[AR] Path too short to draw arrows');
-      return;
-    }
+  function placeArrowsAlongPath(pathNodes) {
+  const sampledPoints = [];
+  const totalPoints = [];
 
-    // Calculate cumulative distances and store segment information
-    const segments = [];
-    let totalLengthMeters = 0;
-
-    for (let i = 0; i < nodes.length - 1; i++) {
-      const fromNode = nodes[i];
-      const toNode = nodes[i + 1];
-      const dx = toNode.x - fromNode.x;
-      const dy = toNode.y - fromNode.y;
-      const distanceSVG = Math.hypot(dx, dy);
-      const distanceMeters = distanceSVG * SVG_TO_METERS;
-      segments.push({
-        fromNode,
-        toNode,
-        distanceMeters,
-        cumulativeDistance: totalLengthMeters
-      });
-      totalLengthMeters += distanceMeters;
-    }
-
-    // Place arrows every ARROW_SPACING_METERS along the total path
-    const numArrows = Math.floor(totalLengthMeters / ARROW_SPACING_METERS);
-    for (let i = 1; i <= numArrows; i++) {
-      const targetDistance = i * ARROW_SPACING_METERS;
-      let currentDistance = 0;
-      let currentSegment = null;
-
-      // Find the segment containing the target distance
-      for (const segment of segments) {
-        if (targetDistance >= segment.cumulativeDistance && 
-            targetDistance < segment.cumulativeDistance + segment.distanceMeters) {
-          currentSegment = segment;
-          break;
-        }
-        currentDistance = segment.cumulativeDistance + segment.distanceMeters;
-      }
-
-      if (!currentSegment) continue;
-
-      // Interpolate within the segment
-      const segmentProgress = (targetDistance - currentSegment.cumulativeDistance) / currentSegment.distanceMeters;
-      const lerpX = currentSegment.fromNode.x + (currentSegment.toNode.x - currentSegment.fromNode.x) * segmentProgress;
-      const lerpY = currentSegment.fromNode.y + (currentSegment.toNode.y - currentSegment.fromNode.y) * segmentProgress;
-
-      const worldPos = svgToWorld(lerpX, lerpY);
-      const arrow = createArrowMesh();
-      if (!arrow) continue;
-
-      arrow.scale.set(5, 5, 5);
-      arrow.position.copy(worldPos);
-
-      // Orient arrow toward the next node
-      const nextWorld = svgToWorld(currentSegment.toNode.x, currentSegment.toNode.y);
-      arrow.lookAt(nextWorld);
-      arrow.rotation.x = 0;
-      arrow.rotation.z = 0;
-
-      window.scene.add(arrow);
-      arrows.push(arrow);
-    }
+  // Collect all SVG points from path segments
+  for (let i = 0; i < pathNodes.length - 1; i++) {
+    const from = pathNodes[i];
+    const to = pathNodes[i + 1];
+    totalPoints.push([from, to]);
   }
+
+  // Walk the full path and place arrows every 1m
+  let remaining = 0; // meters carried over to next segment
+
+  for (const [from, to] of totalPoints) {
+    const dx = to.x - from.x;
+    const dy = to.y - from.y;
+    const distSVG = Math.hypot(dx, dy);
+    const distM = distSVG * SVG_TO_METERS;
+
+    const segmentSteps = Math.floor((distM + remaining) / ARROW_SPACING_METERS);
+    const segmentDirX = dx / distSVG;
+    const segmentDirY = dy / distSVG;
+
+    let offsetM = ARROW_SPACING_METERS - remaining;
+
+    for (let i = 0; i < segmentSteps; i++) {
+      const svgX = from.x + segmentDirX * (offsetM / SVG_TO_METERS);
+      const svgY = from.y + segmentDirY * (offsetM / SVG_TO_METERS);
+      sampledPoints.push({ x: svgX, y: svgY });
+
+      offsetM += ARROW_SPACING_METERS;
+    }
+
+    // Calculate leftover distance for next segment
+    remaining = (distM + remaining) % ARROW_SPACING_METERS;
+  }
+
+  // Instantiate arrows at sampled points
+  for (let i = 0; i < sampledPoints.length - 1; i++) {
+    const point = sampledPoints[i];
+    const next = sampledPoints[i + 1];
+
+    const worldPos = svgToWorld(point.x, point.y);
+    const nextWorld = svgToWorld(next.x, next.y);
+
+    const arrow = createArrowMesh();
+    if (!arrow) continue;
+
+    arrow.position.copy(worldPos);
+    arrow.scale.set(5, 5, 5);
+    arrow.lookAt(nextWorld);
+    arrow.rotation.x = 0;
+    arrow.rotation.z = 0;
+
+    if (window.scene) {
+      window.scene.add(arrow);
+    }
+    arrows.push(arrow);
+  }
+
+  console.log(`[AR Navigation] ${arrows.length} arrows placed along path.`);
+}
+
 
   function highlightNearestArrow() {
     if (!navActive || !window.camera || arrows.length === 0) return;
@@ -148,6 +145,7 @@
     });
   }
 
+  // Call this when routing is triggered
   window.startNavigation = function (destinationId) {
     clearNavigation();
 
@@ -166,12 +164,12 @@
 
     pathNodes = pathResult.path.map(id => window.nodeMap[id]);
 
-    // Draw arrows along the entire path
-    drawArrowsAlongPath(pathNodes);
+    placeArrowsAlongPath(pathNodes);
 
     navActive = true;
     console.log(`[AR Navigation] Navigation started to ${destinationId}`);
   };
 
+  // Expose for use in render loop
   window.updateNavigationFrame = highlightNearestArrow;
 })();
