@@ -35,7 +35,7 @@
 
     return new THREE.Vector3(
       origin.x + rotatedX,
-      origin.y,
+      origin.y, // keep Y fixed as anchor
       origin.z - rotatedZ
     );
   }
@@ -69,47 +69,36 @@
     }
   }
 
-  function drawArrowsOnFullPath(pathNodes) {
-    const ARROW_SPACING = ARROW_SPACING_METERS;
-    let leftoverDistance = 0;
+  function drawArrowsBetween(fromNode, toNode) {
+    const dx = toNode.x - fromNode.x;
+    const dy = toNode.y - fromNode.y;
+    const distanceSVG = Math.hypot(dx, dy);
+    const distanceMeters = distanceSVG * SVG_TO_METERS;
+    const steps = Math.floor(distanceMeters / ARROW_SPACING_METERS);
 
-    for (let i = 0; i < pathNodes.length - 1; i++) {
-      const from = pathNodes[i];
-      const to = pathNodes[i + 1];
+    if (steps === 0) {
+      console.warn('[AR] Too close to draw arrows. Skipping.');
+      return;
+    }
 
-      const dx = to.x - from.x;
-      const dy = to.y - from.y;
-      const segmentLengthSVG = Math.hypot(dx, dy);
-      const segmentLengthMeters = segmentLengthSVG * SVG_TO_METERS;
+    for (let i = 1; i <= steps; i++) {
+      const lerpX = fromNode.x + (dx * i / steps);
+      const lerpY = fromNode.y + (dy * i / steps);
 
-      const directionX = dx / segmentLengthSVG;
-      const directionY = dy / segmentLengthSVG;
+      const worldPos = svgToWorld(lerpX, lerpY);
+      const arrow = createArrowMesh();
+      if (!arrow) continue;
 
-      let distanceAlongSegment = ARROW_SPACING - leftoverDistance;
+      arrow.scale.set(5, 5, 5);
+      arrow.position.copy(worldPos);
 
-      while (distanceAlongSegment < segmentLengthMeters) {
-        const posX = from.x + directionX * (distanceAlongSegment / SVG_TO_METERS);
-        const posY = from.y + directionY * (distanceAlongSegment / SVG_TO_METERS);
+      const nextWorld = svgToWorld(toNode.x, toNode.y);
+      arrow.lookAt(nextWorld);
+      arrow.rotation.x = 0;
+      arrow.rotation.z = 0;
 
-        const worldPos = svgToWorld(posX, posY);
-        const arrow = createArrowMesh();
-        if (!arrow) break;
-
-        arrow.scale.set(5, 5, 5);
-        arrow.position.copy(worldPos);
-
-        const toWorld = svgToWorld(to.x, to.y);
-        arrow.lookAt(toWorld);
-        arrow.rotation.x = 0;
-        arrow.rotation.z = 0;
-
-        window.scene.add(arrow);
-        arrows.push(arrow);
-
-        distanceAlongSegment += ARROW_SPACING;
-      }
-
-      leftoverDistance = segmentLengthMeters - (distanceAlongSegment - ARROW_SPACING);
+      window.scene.add(arrow);
+      arrows.push(arrow);
     }
   }
 
@@ -124,6 +113,7 @@
     });
   }
 
+  // Call this when routing is triggered
   window.startNavigation = function (destinationId) {
     clearNavigation();
 
@@ -142,11 +132,14 @@
 
     pathNodes = pathResult.path.map(id => window.nodeMap[id]);
 
-    drawArrowsOnFullPath(pathNodes);
+    for (let i = 0; i < pathNodes.length - 1; i++) {
+      drawArrowsBetween(pathNodes[i], pathNodes[i + 1]);
+    }
 
     navActive = true;
     console.log(`[AR Navigation] Navigation started to ${destinationId}`);
   };
 
+  // Expose for use in render loop
   window.updateNavigationFrame = highlightNearestArrow;
 })();
