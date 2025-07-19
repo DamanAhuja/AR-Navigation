@@ -34,79 +34,94 @@
   function placeArrows(pathNodes) {
     if (pathNodes.length < 2) return;
     
-    // Convert all path nodes to world positions first
-    const worldPath = pathNodes.map(node => {
+    // Convert all path nodes to AR world positions
+    const arWorldPath = [];
+    for (let i = 0; i < pathNodes.length; i++) {
+      const node = pathNodes[i];
       const y = window.svgHeight - node.y;
-      return {
-        svgPos: { x: node.x, y: y },
-        worldPos: svgToWorldBasic(node.x, y)
-      };
-    });
-    
-    // Calculate total path length in world coordinates
-    let totalPathLength = 0;
-    const segmentLengths = [];
-    for (let i = 0; i < worldPath.length - 1; i++) {
-      const segmentLength = worldPath[i].worldPos.distanceTo(worldPath[i + 1].worldPos);
-      segmentLengths.push(segmentLength);
-      totalPathLength += segmentLength;
+      const worldPos = svgToWorldBasic(node.x, y);
+      arWorldPath.push(worldPos);
+      console.log(`[Path Node ${i}] SVG: (${node.x}, ${node.y}) -> AR World: (${worldPos.x.toFixed(3)}, ${worldPos.y.toFixed(3)}, ${worldPos.z.toFixed(3)})`);
     }
     
-    console.log(`[AR Navigation] Total path length: ${totalPathLength.toFixed(2)}m`);
+    // Build path segments with cumulative distances in AR world space
+    const pathSegments = [];
+    let cumulativeDistance = 0;
     
-    // Place arrows at exact meter intervals along the world path
-    const numArrows = Math.floor(totalPathLength / ARROW_SPACING_METERS);
-    console.log(`[AR Navigation] Will place ${numArrows} arrows`);
-    
-    for (let arrowIndex = 0; arrowIndex < numArrows; arrowIndex++) {
-      const targetDistance = (arrowIndex + 1) * ARROW_SPACING_METERS;
+    for (let i = 0; i < arWorldPath.length - 1; i++) {
+      const start = arWorldPath[i];
+      const end = arWorldPath[i + 1];
+      const segmentDistance = start.distanceTo(end); // Real AR world distance
       
+      pathSegments.push({
+        start: start.clone(),
+        end: end.clone(),
+        length: segmentDistance,
+        startCumulative: cumulativeDistance,
+        endCumulative: cumulativeDistance + segmentDistance
+      });
+      
+      cumulativeDistance += segmentDistance;
+      console.log(`[Segment ${i}] AR World Distance: ${segmentDistance.toFixed(3)}m, Cumulative: ${cumulativeDistance.toFixed(3)}m`);
+    }
+    
+    console.log(`[AR Navigation] Total AR path length: ${cumulativeDistance.toFixed(2)}m`);
+    
+    // Place arrows every 1 meter in AR world space
+    let nextArrowDistance = ARROW_SPACING_METERS;
+    let arrowCount = 0;
+    
+    while (nextArrowDistance < cumulativeDistance) {
       // Find which segment this distance falls into
-      let accumulatedDistance = 0;
-      let segmentIndex = 0;
-      
-      for (let i = 0; i < segmentLengths.length; i++) {
-        if (accumulatedDistance + segmentLengths[i] >= targetDistance) {
-          segmentIndex = i;
+      let targetSegment = null;
+      for (const segment of pathSegments) {
+        if (nextArrowDistance >= segment.startCumulative && nextArrowDistance <= segment.endCumulative) {
+          targetSegment = segment;
           break;
         }
-        accumulatedDistance += segmentLengths[i];
       }
       
-      // Calculate position within the segment
-      const distanceIntoSegment = targetDistance - accumulatedDistance;
-      const segmentProgress = distanceIntoSegment / segmentLengths[segmentIndex];
+      if (!targetSegment) {
+        nextArrowDistance += ARROW_SPACING_METERS;
+        continue;
+      }
       
-      // Interpolate position in world coordinates
-      const startWorld = worldPath[segmentIndex].worldPos;
-      const endWorld = worldPath[segmentIndex + 1].worldPos;
-      const arrowPos = startWorld.clone().lerp(endWorld, segmentProgress);
+      // Calculate position within segment (in AR world coordinates)
+      const distanceIntoSegment = nextArrowDistance - targetSegment.startCumulative;
+      const segmentProgress = distanceIntoSegment / targetSegment.length;
       
-      // Calculate direction for arrow orientation
-      const direction = endWorld.clone().sub(startWorld).normalize();
-      const lookAtPos = arrowPos.clone().add(direction.clone().multiplyScalar(0.1));
+      // Linear interpolation in AR world space
+      const arrowPosition = targetSegment.start.clone().lerp(targetSegment.end, segmentProgress);
       
-      console.log(`[Arrow ${arrowIndex + 1}] Position: (${arrowPos.x.toFixed(2)}, ${arrowPos.y.toFixed(2)}, ${arrowPos.z.toFixed(2)})`);
+      // Calculate direction vector in AR world space
+      const direction = targetSegment.end.clone().sub(targetSegment.start).normalize();
+      const lookAtTarget = arrowPosition.clone().add(direction.multiplyScalar(0.5));
       
-      // Create and place arrow
+      console.log(`[Arrow ${arrowCount + 1}] Target Distance: ${nextArrowDistance.toFixed(2)}m`);
+      console.log(`[Arrow ${arrowCount + 1}] AR Position: (${arrowPosition.x.toFixed(3)}, ${arrowPosition.y.toFixed(3)}, ${arrowPosition.z.toFixed(3)})`);
+      
+      // Create arrow mesh
       const arrow = createArrowMesh();
-      arrow.position.copy(arrowPos);
-      arrow.lookAt(lookAtPos);
+      arrow.position.copy(arrowPosition);
+      arrow.lookAt(lookAtTarget);
       arrow.rotateX(Math.PI / 2);
       arrow.scale.set(2, 2, 2);
       
       window.scene?.add(arrow);
       arrows.push(arrow);
       
-      // Debug: Check distance from previous arrow
+      // Verify spacing with previous arrow
       if (arrows.length > 1) {
         const prevArrow = arrows[arrows.length - 2];
-        const actualDistance = arrowPos.distanceTo(prevArrow.position);
-        console.log(`[Arrow ${arrowIndex + 1}] Distance from previous: ${actualDistance.toFixed(2)}m`);
+        const actualDistance = arrowPosition.distanceTo(prevArrow.position);
+        console.log(`[Arrow ${arrowCount + 1}] Actual distance from previous: ${actualDistance.toFixed(3)}m`);
       }
+      
+      arrowCount++;
+      nextArrowDistance += ARROW_SPACING_METERS;
     }
     
-    console.log(`[AR Navigation] Successfully placed ${arrows.length} arrows.`);
+    console.log(`[AR Navigation] Placed ${arrows.length} arrows with 1m AR world spacing.`);
   }
   
   window.startNavigation = function (destinationId) {
