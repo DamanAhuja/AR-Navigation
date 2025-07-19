@@ -27,7 +27,7 @@ window.addEventListener("load", () => {
       const nodes = window.extractedNodes.map(n => ({
         ...n,
         x: n.x * window.scaleFactorX,
-        y: (window.svgHeight - n.y) * window.scaleFactorY
+        y: n.y * window.scaleFactorY
       }));
 
       nodes.forEach(n => window.nodeMap[n.id] = n);
@@ -45,7 +45,7 @@ window.addEventListener("load", () => {
       });
 
       nodes.forEach(node => {
-        L.circleMarker([node.y, node.x], {
+        L.circleMarker([(window.svgHeight) - node.y, node.x], {
           radius: 5,
           color: 'blue',
           fillColor: 'lightblue',
