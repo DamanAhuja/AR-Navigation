@@ -233,7 +233,7 @@
           const svgNode = window.nodeMap[nodeId]; // must have .x and .y in SVG space
           window.worldOrigin = {
           x: svgNode.x,
-          y: svgNode.y,
+          y: window.svgHeight - svgNode.y,
           worldPosition: new THREE.Vector3(0,0,0)
           };
 
