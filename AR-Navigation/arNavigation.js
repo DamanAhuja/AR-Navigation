@@ -60,6 +60,9 @@
       const y = fromSvg.y + direction.y * distIntoSegmentSvg;
       const pos = svgToWorldBasic(x, y);
 
+      console.log(`[Arrow] SVG Position: (${x.toFixed(2)}, ${y.toFixed(2)})`);
+      console.log(`[Arrow] World Position: (${pos.x.toFixed(2)}, ${pos.y.toFixed(2)}, ${pos.z.toFixed(2)})`);
+
       // Lookahead for direction
       const nextSvgX = x + direction.x * 0.01; // small step forward
       const nextSvgY = y + direction.y * 0.01;
