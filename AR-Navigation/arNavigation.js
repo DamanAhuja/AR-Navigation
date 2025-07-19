@@ -71,9 +71,9 @@
       const arrow = createArrowMesh();
       arrow.position.copy(pos);
       arrow.lookAt(nextPos);
-      arrow.rotation.x = 0;
-      arrow.rotation.z = 0;
-      arrow.scale.set(5, 5, 5);
+      arrow.rotateX(Math.PI / 2);
+      
+      arrow.scale.set(2, 2, 2);
 
       window.scene?.add(arrow);
       arrows.push(arrow);
