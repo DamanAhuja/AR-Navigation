@@ -45,7 +45,7 @@ window.addEventListener("load", () => {
       });
 
       nodes.forEach(node => {
-        L.circleMarker([(window.svgHeight) - node.y, node.x], {
+        L.circleMarker([window.svgHeight - node.y, node.x], {
           radius: 5,
           color: 'blue',
           fillColor: 'lightblue',
@@ -95,7 +95,7 @@ window.addEventListener("load", () => {
         currentMarkerId = markerId;
 
         if (!window.userMarker) {
-          userMarker = L.circleMarker([match.y, match.x], {
+          userMarker = L.circleMarker([window.svgHeight - match.y, match.x], {
             radius: 8,
             color: 'red',
             fillColor: '#f03',
