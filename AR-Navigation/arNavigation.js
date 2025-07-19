@@ -57,7 +57,7 @@
       const distIntoSegmentSvg = distIntoSegment / SVG_TO_METERS_X;
 
       const x = fromSvg.x + direction.x * distIntoSegmentSvg;
-      const y = fromSvg.y + direction.y * distIntoSegmentSvg;
+      const y = window.svgHeight - (fromSvg.y + direction.y * distIntoSegmentSvg);
       const pos = svgToWorldBasic(x, y);
 
       console.log(`[Arrow] SVG Position: (${x.toFixed(2)}, ${y.toFixed(2)})`);
