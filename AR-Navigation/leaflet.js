@@ -27,7 +27,7 @@ window.addEventListener("load", () => {
       const nodes = window.extractedNodes.map(n => ({
         ...n,
         x: n.x * window.scaleFactorX,
-        y: n.y * window.scaleFactorY
+        y: (window.svgHeight - n.y) * window.scaleFactorY
       }));
 
       nodes.forEach(n => window.nodeMap[n.id] = n);
