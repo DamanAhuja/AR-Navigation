@@ -58,12 +58,12 @@
   if (!window.userPosition || !window.goTo || !window.nodeMap) return;
 
   const result = window.goTo(destinationId);
-  if (!result?.path || result.path.length < 2) return;
 
   const pathNodes = result.path.map(id => window.nodeMap[id]);
 
   // Get SVG->North offset (in degrees)
   const svgNorthOffset = getNorthOffsetAngleDegrees();
+  console.log(svgNorthOffset);
 
   getCameraHeadingDegrees((deviceHeadingDegrees) => {
     const correctionDegrees = deviceHeadingDegrees - svgNorthOffset;
@@ -99,11 +99,15 @@
         const relativePos = originalPos.clone().sub(origin);
         const rotatedPos = relativePos.applyAxisAngle(new THREE.Vector3(0, 1, 0), correctionRadians);
         const finalPos = origin.clone().add(rotatedPos);
+        console.log(`[Arrow] SVG Position: (${x.toFixed(2)}, ${y.toFixed(2)})`);
+        console.log(`[Arrow] World Position: (${finalPos.x.toFixed(2)}, ${finalPos.y.toFixed(2)}, ${finalPos.z.toFixed(2)})`);
 
         // Compute forward direction (small step forward)
         const nextSvgX = x + direction.x * 0.01;
         const nextSvgY = y + direction.y * 0.01;
         const nextPos = svgToWorld(nextSvgX, nextSvgY);
+
+        console.log(nextPos);
 
         // Rotate forward vector the same way
         const forwardVec = nextPos.clone().sub(originalPos).normalize();
@@ -120,6 +124,7 @@
         arrows.push(arrow);
 
         nextArrowAt += ARROW_SPACING_METERS;
+        console.log("Arrow spacing");
       }
 
       totalDistance += distM;
