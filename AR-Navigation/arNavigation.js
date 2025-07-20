@@ -53,8 +53,14 @@
     window.addEventListener("deviceorientationabsolute", handleOrientation, { once: true });
   }
 
-  function placeNavigationPath(pathNodes) {
+  function placeNavigationPath(destinationId) {
     clearNavigation();
+    if (!window.userPosition || !window.goTo || !window.nodeMap) return;
+
+    const result = window.goTo(destinationId);
+    if (!result?.path || result.path.length < 2) return;
+
+    const pathNodes = result.path.map(id => window.nodeMap[id]);
 
     if (!pathNodes || pathNodes.length < 2) return;
 
