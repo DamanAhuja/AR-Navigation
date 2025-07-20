@@ -70,11 +70,14 @@
     const correctionRadians = THREE.MathUtils.degToRad(correctionDegrees);
     const origin = window.worldOrigin.worldPosition.clone();
 
+    console.log(origin);
+    
     let totalDistance = 0;
     let nextArrowAt = ARROW_SPACING_METERS;
 
     for (let i = 0; i < pathNodes.length - 1; i++) {
       const fromSvg = pathNodes[i];
+      console.log(fromSvg);
       const toSvg = pathNodes[i + 1];
 
       const dx = toSvg.x - fromSvg.x;
@@ -82,9 +85,10 @@
       const distSvg = Math.hypot(dx, dy);
       const distM = distSvg * window.svgToMeters.x;
 
-      if (distM === 0) continue;
+      //if (distM === 0) continue;
 
       const direction = new THREE.Vector2(dx, dy).normalize();
+      console.log(direction);
 
       while (totalDistance + distM >= nextArrowAt) {
         const distIntoSegment = nextArrowAt - totalDistance;
