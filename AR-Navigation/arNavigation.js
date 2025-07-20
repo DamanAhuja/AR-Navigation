@@ -1,6 +1,7 @@
 (() => {
   const ARROW_SPACING_METERS = 1;
   let arrows = [];
+  const SVG_TO_METERS_X = 5.45 / (230 - 90); // ~0.03893  
 
   function clearNavigation() {
     arrows.forEach(a => window.scene?.remove(a));
@@ -9,8 +10,8 @@
   }
 
   function svgToWorld(svgX, svgY) {
-    const svgToMetersX = window.svgToMeters?.x || 1;
-    const svgToMetersY = window.svgToMeters?.y || 1;
+    const svgToMetersX = SVG_TO_METERS_X;
+    const svgToMetersY = SVG_TO_METERS_X;
     if (!window.worldOrigin || !window.worldOrigin.worldPosition) return new THREE.Vector3();
     return new THREE.Vector3(
       svgX * svgToMetersX + window.worldOrigin.worldPosition.x,
@@ -89,7 +90,7 @@
       const dx = toSvg.x - fromSvg.x;
       const dy = toSvg.y - fromSvg.y;
       const distSvg = Math.hypot(dx, dy);
-      const distM = distSvg * window.svgToMeters.x;
+      const distM = distSvg * SVG_TO_METERS_X;
 
       //if (distM === 0) continue;
 
@@ -98,7 +99,7 @@
 
       while (totalDistance + distM >= nextArrowAt) {
         const distIntoSegment = nextArrowAt - totalDistance;
-        const distIntoSegmentSvg = distIntoSegment / window.svgToMeters.x;
+        const distIntoSegmentSvg = distIntoSegment / SVG_TO_METERS_X;
 
         const x = fromSvg.x + direction.x * distIntoSegmentSvg;
         const y = window.svgHeight - (fromSvg.y + direction.y * distIntoSegmentSvg);
