@@ -43,11 +43,17 @@
 
   function getCameraHeadingDegrees(callback) {
     const handleOrientation = (event) => {
+      console.log(event.alpha);
       if (typeof event.alpha === "number") {
         // Top of device faces alpha, back camera faces (alpha + 270) % 360
         const heading = (event.alpha + 270) % 360;
+        console.log(heading);
         window.removeEventListener("deviceorientationabsolute", handleOrientation);
         callback(heading);
+      }
+      else
+      {
+        console.log("No if");
       }
     };
     window.addEventListener("deviceorientationabsolute", handleOrientation, { once: true });
