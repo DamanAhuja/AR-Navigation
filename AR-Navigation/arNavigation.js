@@ -54,53 +54,80 @@
   }
 
   function placeNavigationPath(destinationId) {
-    clearNavigation();
-    if (!window.userPosition || !window.goTo || !window.nodeMap) return;
+  clearNavigation();
+  if (!window.userPosition || !window.goTo || !window.nodeMap) return;
 
-    const result = window.goTo(destinationId);
-    if (!result?.path || result.path.length < 2) return;
+  const result = window.goTo(destinationId);
+  if (!result?.path || result.path.length < 2) return;
 
-    const pathNodes = result.path.map(id => window.nodeMap[id]);
+  const pathNodes = result.path.map(id => window.nodeMap[id]);
 
-    if (!pathNodes || pathNodes.length < 2) return;
+  // Get SVG->North offset (in degrees)
+  const svgNorthOffset = getNorthOffsetAngleDegrees();
 
-    const worldPositions = pathNodes.map(p => svgToWorld(p.x, p.y));
+  getCameraHeadingDegrees((deviceHeadingDegrees) => {
+    const correctionDegrees = deviceHeadingDegrees - svgNorthOffset;
+    const correctionRadians = THREE.MathUtils.degToRad(correctionDegrees);
+    const origin = window.worldOrigin.worldPosition.clone();
 
-    // Compute angle to rotate based on user's heading and SVG north
-    const northOffset = getNorthOffsetAngleDegrees();
-    getCameraHeadingDegrees((cameraHeading) => {
-      const rotationDelta = THREE.MathUtils.degToRad(northOffset - cameraHeading);
-      const rotatedPositions = worldPositions.map(pos => {
-        const offset = pos.clone().sub(window.worldOrigin.worldPosition);
-        const rotated = offset.clone().applyAxisAngle(new THREE.Vector3(0, 1, 0), rotationDelta);
-        return rotated.add(window.worldOrigin.worldPosition);
-      });
+    let totalDistance = 0;
+    let nextArrowAt = ARROW_SPACING_METERS;
 
-      let totalLength = 0;
-      for (let i = 0; i < rotatedPositions.length - 1; i++) {
-        const start = rotatedPositions[i];
-        const end = rotatedPositions[i + 1];
-        const segment = new THREE.Vector3().subVectors(end, start);
-        const length = segment.length();
-        const direction = segment.clone().normalize();
+    for (let i = 0; i < pathNodes.length - 1; i++) {
+      const fromSvg = pathNodes[i];
+      const toSvg = pathNodes[i + 1];
 
-        let distance = 0;
-        while (totalLength + distance < totalLength + length) {
-          const pos = start.clone().add(direction.clone().multiplyScalar(distance));
-          const arrow = createArrowMesh();
-          arrow.position.copy(pos);
-          arrow.lookAt(pos.clone().add(direction));
-          arrow.rotateX(Math.PI / 2);
-          arrow.scale.set(1, 1, 1);
-          window.scene?.add(arrow);
-          arrows.push(arrow);
-          distance += ARROW_SPACING_METERS;
-        }
+      const dx = toSvg.x - fromSvg.x;
+      const dy = toSvg.y - fromSvg.y;
+      const distSvg = Math.hypot(dx, dy);
+      const distM = distSvg * window.svgToMeters.x;
 
-        totalLength += length;
+      if (distM === 0) continue;
+
+      const direction = new THREE.Vector2(dx, dy).normalize();
+
+      while (totalDistance + distM >= nextArrowAt) {
+        const distIntoSegment = nextArrowAt - totalDistance;
+        const distIntoSegmentSvg = distIntoSegment / window.svgToMeters.x;
+
+        const x = fromSvg.x + direction.x * distIntoSegmentSvg;
+        const y = window.svgHeight - (fromSvg.y + direction.y * distIntoSegmentSvg);
+
+        const originalPos = svgToWorld(x, y);
+
+        // Rotate position around origin by correction angle
+        const relativePos = originalPos.clone().sub(origin);
+        const rotatedPos = relativePos.applyAxisAngle(new THREE.Vector3(0, 1, 0), correctionRadians);
+        const finalPos = origin.clone().add(rotatedPos);
+
+        // Compute forward direction (small step forward)
+        const nextSvgX = x + direction.x * 0.01;
+        const nextSvgY = y + direction.y * 0.01;
+        const nextPos = svgToWorld(nextSvgX, nextSvgY);
+
+        // Rotate forward vector the same way
+        const forwardVec = nextPos.clone().sub(originalPos).normalize();
+        const rotatedForward = forwardVec.applyAxisAngle(new THREE.Vector3(0, 1, 0), correctionRadians);
+        const lookTarget = finalPos.clone().add(rotatedForward);
+
+        const arrow = createArrowMesh();
+        arrow.position.copy(finalPos);
+        arrow.lookAt(lookTarget);
+        arrow.rotateX(Math.PI / 2);
+        arrow.scale.set(2, 2, 2);
+
+        window.scene?.add(arrow);
+        arrows.push(arrow);
+
+        nextArrowAt += ARROW_SPACING_METERS;
       }
-    });
-  }
+
+      totalDistance += distM;
+    }
+
+    console.log(`[AR Navigation] Placed ${arrows.length} arrows aligned to real-world North.`);
+  });
+}
 
   // Expose to global
   window.arNavigation = {
