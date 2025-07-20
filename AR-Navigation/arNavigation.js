@@ -133,6 +133,8 @@
 
     // Calculate the map rotation offset based on north marker
     mapRotationOffset = calculateMapRotationOffset();
+
+    window.debugNorthAlignment();
     
     const result = window.goTo(destinationId);
     if (!result?.path || result.path.length < 2) {
