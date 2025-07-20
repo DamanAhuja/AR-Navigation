@@ -142,7 +142,7 @@ window.routeToDestination = async function () {
     }
 
     // Trigger AR navigation
-    if (typeof window.startNavigation === 'function') {
+    if (typeof window.arNavigation.placeNavigationPath === 'function') {
       console.log(`[Navigation] Starting AR navigation to: ${selectedValue}`);
       window.arNavigation.placeNavigationPath(pathNodes);
     } else {
