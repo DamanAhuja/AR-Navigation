@@ -144,7 +144,7 @@ window.routeToDestination = async function () {
     // Trigger AR navigation
     if (typeof window.startNavigation === 'function') {
       console.log(`[Navigation] Starting AR navigation to: ${selectedValue}`);
-      window.startNavigation(selectedValue);
+      window.arNavigation.placeNavigationPath(pathNodes);
     } else {
       console.error("[Navigation] startNavigation function is not defined");
       alert("AR navigation is not available. Please try again later.");
